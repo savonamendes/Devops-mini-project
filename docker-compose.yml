@@ -1,0 +1,106 @@
+# =============================================================
+#  Docker Compose – ODR India Full-Stack
+#
+#  Network topology
+#  ─────────────────────────────────────────────────────────────
+#  ┌──────────────────────────────────────────────────────────┐
+#  │  Host / Internet                                         │
+#  │                                                          │
+#  │  :80 / :443 ──► [frontend] ──► [backend]  (private net) │
+#  │                                    │                     │
+#  │                                    └── AWS RDS (TLS)    │
+#  └──────────────────────────────────────────────────────────┘
+#
+#  The BACKEND is on network "private_net" only –
+#  no ports are published to the host, so it is completely
+#  unreachable from the public internet.
+# =============================================================
+
+version: "3.9"
+
+services:
+
+  # ─────────────────────────────────────────────
+  #  BACKEND  –  Express / TypeScript (port 4000)
+  #  Only accessible from the private_net
+  # ─────────────────────────────────────────────
+  backend:
+    build:
+      context: ./odr-backend
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    # ⚠️  No `ports:` block → backend is NOT reachable from the host or internet.
+    #     The frontend container reaches it via http://backend:4000 (internal DNS).
+    environment:
+      NODE_ENV: production
+      # Prisma / AWS RDS connection string
+      DATABASE_URL: ${DATABASE_URL}
+      # JWT signing secret
+      JWT_SECRET: ${JWT_SECRET}
+      # Together AI (chatbot)
+      TOGETHER_API_KEY: ${TOGETHER_API_KEY}
+      # SendGrid e-mail
+      SENDGRID_API_KEY: ${SENDGRID_API_KEY}
+      SENDGRID_FROM_EMAIL: ${SENDGRID_FROM_EMAIL:-noreply@odrlab.com}
+      # Session config
+      SESSION_SECRET: ${SESSION_SECRET}
+      SESSION_DURATION_HOURS: ${SESSION_DURATION_HOURS:-24}
+      # Port the process listens on (must match EXPOSE in Dockerfile)
+      PORT: 4000
+    networks:
+      - private_net
+    healthcheck:
+      test: ["CMD-SHELL", "node -e \"require('http').get('http://localhost:4000/api/csrf-token', r => process.exit(r.statusCode === 200 ? 0 : 1)).on('error', () => process.exit(1))\""]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+
+  # ─────────────────────────────────────────────
+  #  FRONTEND  –  Next.js (port 3000)
+  #  Exposed to the host; proxies API calls to backend
+  # ─────────────────────────────────────────────
+  frontend:
+    build:
+      context: ./odrindia
+      dockerfile: Dockerfile
+      args:
+        # NEXT_PUBLIC_* vars must be baked in at build time
+        NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:-http://localhost/api}
+        NEXT_PUBLIC_GOOGLE_CLIENT_ID: ${NEXT_PUBLIC_GOOGLE_CLIENT_ID}
+        NEXT_PUBLIC_JITSI_SERVER: ${NEXT_PUBLIC_JITSI_SERVER:-meet.jit.si}
+        NEXT_PUBLIC_JITSI_ROOM_PREFIX: ${NEXT_PUBLIC_JITSI_ROOM_PREFIX:-odrindia-}
+    restart: unless-stopped
+    ports:
+      - "3000:3000"      # Change to "80:3000" or use nginx in front when going to production
+    environment:
+      NODE_ENV: production
+      # Runtime-only secrets (not baked into the bundle)
+      # The internal Docker URL the Next.js server uses to call the backend
+      BACKEND_URL: http://backend:4000
+      JWT_SECRET: ${JWT_SECRET}
+      SESSION_SECRET: ${SESSION_SECRET}
+      NEXT_TELEMETRY_DISABLED: "1"
+    depends_on:
+      backend:
+        condition: service_healthy
+    networks:
+      - private_net   # same network so it can reach backend by DNS name
+    healthcheck:
+      test: ["CMD-SHELL", "node -e \"require('http').get('http://localhost:3000', r => process.exit(r.statusCode < 500 ? 0 : 1)).on('error', () => process.exit(1))\""]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+# ─────────────────────────────────────────────
+#  Networks
+# ─────────────────────────────────────────────
+networks:
+  private_net:
+    driver: bridge
+    # `internal: true` would completely block internet access from containers
+    # (needed for outbound calls to AWS RDS / SendGrid / Together AI).
+    # We leave it as a normal bridge so containers can reach external services,
+    # but we rely on NEVER publishing backend ports to keep it off the internet.
+    internal: false

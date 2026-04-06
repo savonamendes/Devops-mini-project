@@ -1,0 +1,14 @@
+# ─── Environment secrets (NEVER commit these) ────────────────
+.env
+.env.local
+.env.production
+.env.development
+.env.*.local
+
+# ─── Node / Bun ──────────────────────────────────────────────
+**/node_modules/
+**/dist/
+**/.next/
+
+# ─── Docker ──────────────────────────────────────────────────
+# (keep docker-compose.yml and Dockerfiles committed)

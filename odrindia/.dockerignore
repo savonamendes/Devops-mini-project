@@ -1,0 +1,10 @@
+node_modules
+.next
+.git
+.gitignore
+.env
+.env.*
+*.md
+.vscode
+src/tests
+test-jwt-security.js

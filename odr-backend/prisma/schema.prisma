@@ -1,0 +1,295 @@
+model AuditLog {
+  id          String   @id @default(uuid())
+  action      String
+  userId      String?
+  userRole    UserRole?
+  targetId    String?
+  targetType  String?
+  success     Boolean
+  message     String?
+  ipAddress   String?
+  createdAt   DateTime @default(now())
+}
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  ADMIN
+  INNOVATOR
+  MENTOR
+  FACULTY
+  OTHER
+}
+
+enum MentorType {
+  TECHNICAL_EXPERT
+  LEGAL_EXPERT
+  ODR_EXPERT
+  CONFLICT_RESOLUTION_EXPERT
+}
+
+enum Visibility {
+  PUBLIC
+  PRIVATE
+}
+
+enum Status {
+  PENDING
+  SUCCESS
+  FAILED
+}
+
+
+model User {
+  id            String   @id @default(uuid())
+  name          String
+  email         String   @unique
+  password      String?
+  contactNumber String?
+  city          String?
+  country       String?
+  userRole      UserRole
+  imageAvatar   String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  // Relationships to type-specific tables
+  innovator Innovator?
+  mentor    Mentor?
+  faculty   Faculty?
+  other     Other?
+
+  // Relationships to other tables
+  ideas             Idea[]
+  ideaSubmissions   IdeaSubmission[]
+  ideaCollaborators IdeaCollaborator[]
+  ideaMentors       IdeaMentor[]
+  comments          Comment[]
+  likes             Like[]
+  meetingLogs       MeetingLog[]
+  ideaCollabInviteStatus IdeaCollabInviteStatus[]
+}
+
+model Innovator {
+  id               String  @id @default(uuid())
+  userId           String  @unique
+  institution      String?
+  highestEducation String?
+  courseName       String?
+  courseStatus     String?
+  description      String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Mentor {
+  id           String     @id @default(uuid())
+  userId       String     @unique
+  mentorType   MentorType
+  organization String?
+  role         String?
+  expertise    String?
+  description  String?
+  approved     Boolean    @default(false)
+  reviewedAt   DateTime?
+  reviewedBy   String?
+  rejectionReason String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Faculty {
+  id          String  @id @default(uuid())
+  userId      String  @unique
+  institution String?
+  role        String?
+  expertise   String?
+  course      String?
+  mentoring   Boolean @default(false)
+  description String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Other {
+  id          String  @id @default(uuid())
+  userId      String  @unique
+  role        String?
+  workplace   String?
+  description String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Idea {
+  id          String   @id @default(uuid())
+  title       String
+  caption     String?
+  description String
+  ownerId     String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  approved    Boolean  @default(false)
+  visibility  Visibility @default(PUBLIC)
+
+  // Relationships
+  owner         User               @relation(fields: [ownerId], references: [id])
+  collaborators IdeaCollaborator[]
+  mentors       IdeaMentor[]
+  comments      Comment[]
+  likes         Like[]
+  ideaCollabInviteStatus IdeaCollabInviteStatus[]
+}
+
+model IdeaSubmission {
+  id                 String    @id @default(uuid())
+  title              String
+  caption            String?
+  description        String
+  priorOdrExperience String?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+  ownerId            String
+  reviewed           Boolean   @default(false)
+  reviewedAt         DateTime?
+  reviewedBy         String?
+  approved           Boolean   @default(false)
+  rejected           Boolean   @default(false)
+  rejectionReason    String?
+  visibility         Visibility  @default(PUBLIC)
+  inviteCollaborators String[]    @default([])   // array of user IDs
+
+  // Relationships
+  owner User @relation(fields: [ownerId], references: [id])
+}
+
+model IdeaCollaborator {
+  id       String   @id @default(uuid())
+  ideaId   String
+  userId   String
+  joinedAt DateTime @default(now())
+
+  // Add the missing relation fields
+  idea Idea @relation(fields: [ideaId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([ideaId, userId])
+}
+
+model IdeaMentor {
+  id        String   @id @default(uuid())
+  ideaId    String
+  userId    String
+  role      String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relationships
+  idea Idea @relation(fields: [ideaId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([ideaId, userId])
+}
+
+model Comment {
+  id        String   @id @default(uuid())
+  content   String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relationships
+  ideaId String
+  idea   Idea   @relation(fields: [ideaId], references: [id], onDelete: Cascade)
+
+  authorId String
+  author   User   @relation(fields: [authorId], references: [id], onDelete: Cascade)
+
+  parentId String?
+  parent   Comment?  @relation("CommentToComment", fields: [parentId], references: [id], onDelete: SetNull)
+  replies  Comment[] @relation("CommentToComment")
+
+  likes Like[]
+}
+
+model Like {
+  id        String   @id @default(uuid())
+  createdAt DateTime @default(now())
+
+  // Relationships - can be on idea or comment
+  ideaId String?
+  idea   Idea?   @relation(fields: [ideaId], references: [id], onDelete: Cascade)
+
+  commentId String?
+  comment   Comment? @relation(fields: [commentId], references: [id], onDelete: Cascade)
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, ideaId])
+  @@unique([userId, commentId])
+}
+
+model MeetingLog {
+  id           String    @id @default(uuid())
+  roomName     String
+  startTime    DateTime  @default(now())
+  endTime      DateTime?
+  duration     Int? // Duration in seconds
+  participants Int? // Number of participants
+  initiatorId  String
+  initiator    User      @relation(fields: [initiatorId], references: [id])
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  // Additional optional fields
+  meetingTitle String?
+  ideaId       String?
+  recordingUrl String?
+  summaryText  String?
+}
+
+model EmailTemplate {
+  id          String  @id @default(uuid())
+  name        String  @unique
+  description String?
+  mailsubject String
+  mailcontent String
+  active_id   Boolean @default(true)
+}
+
+model Communication {
+  id         String   @id @default(uuid())
+  msgContent String
+  msgSubject String
+  recipient  String
+  userId     String
+  status     Status @default(PENDING)
+  messageId  String?   
+  reason     String?   
+  createdAt  DateTime @default(now())
+}
+
+model IdeaCollabInviteStatus {
+  id           String   @id @default(uuid())
+  ideaId   String
+  userId   String
+  activity     Boolean  @default(false)
+invitestatus String   @default("PENDING")
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  // Add the missing relation fields
+  idea Idea @relation(fields: [ideaId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([ideaId, userId])
+}

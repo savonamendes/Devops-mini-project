@@ -1,0 +1,102 @@
+import { Router, Request, Response } from "express";
+import csurf from "csurf";
+
+const router = Router();
+// csurf ships types that can conflict with the project's express types.
+// Cast to any to avoid TS overload mismatches when using as middleware.
+const csrfProtection = csurf({ cookie: true }) as any;
+
+// Helper function to sanitize input
+function sanitize(input: string, maxLength: number = 256): string {
+  return input
+    .replace(/[<>;`$\\]/g, "") // Remove potentially dangerous characters
+    .replace(/\s+/g, " ") // Collapse whitespace
+    .trim()
+    .slice(0, maxLength); // Limit length
+}
+
+// POST /api/contact
+router.post("/", csrfProtection, async (req: Request, res: Response) => {
+  try {
+    let { name, email, message } = req.body;
+
+    // Basic validation
+    if (!name || !email || !message) {
+      return res.status(400).json({ error: "All fields are required." });
+    }
+
+    // Prevent header injection
+    if (/\r|\n/.test(name) || /\r|\n/.test(email)) {
+      return res.status(400).json({ error: "Invalid input." });
+    }
+
+    // Sanitize and limit input
+    name = sanitize(name, 100);
+    email = sanitize(email, 100);
+    message = sanitize(message, 1000);
+
+    // Log for debugging CSRF issues
+    console.log("CSRF token received:", req.headers["x-csrf-token"]);
+    if (typeof req.csrfToken === "function") {
+      console.log("Expected CSRF token:", req.csrfToken());
+    } else {
+      console.log("CSRF token function not available");
+    }
+
+    // Append to Google Sheet via Apps Script
+    const response = await fetch(
+      "https://script.google.com/macros/s/AKfycbwcj6v7EHfuAT5Co4yYtnmuwiK2jLnyRL7l1LKZhXIle_6pHrj-FrZANFr__aYhHp2n/exec",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name, email, message }),
+      }
+    );
+
+    if (!response.ok) {
+      console.error("Google Sheet API error:", await response.text());
+      return res.status(500).json({ error: "Failed to send message." });
+    }
+
+    console.log("Contact form submission:", name, email, message);
+    res.status(200).json({
+      success: true,
+      message: "Your message has been sent successfully!",
+    });
+  } catch (error) {
+    console.error("Contact error:", error);
+    if (
+      error &&
+      typeof error === "object" &&
+      "code" in error &&
+      (error as any).code === "EBADCSRFTOKEN"
+    ) {
+      console.error("CSRF token mismatch");
+      return res.status(403).json({
+        error:
+          "Your session has expired or the request was blocked for security reasons. Please refresh and try again.",
+        csrfError: true,
+      });
+    }
+    res.status(500).json({ error: "Failed to send message." });
+  }
+});
+
+// CSRF token endpoint for frontend
+router.get("/csrf-token", csrfProtection, (req: Request, res: Response) => {
+  try {
+    if (typeof req.csrfToken === "function") {
+      const token = req.csrfToken();
+      console.log("Generated new CSRF token:", token);
+      res.status(200).json({ csrfToken: token });
+    } else {
+      console.error("CSRF token function not available");
+      res.status(500).json({ error: "CSRF token function not available." });
+    }
+  } catch (error) {
+    console.error("Error generating CSRF token:", error);
+    res.status(500).json({ error: "Failed to generate CSRF token." });
+  }
+});
+
+export default router;
