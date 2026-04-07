@@ -18,6 +18,7 @@ import cookieParser from "cookie-parser";
 import crypto from "crypto";
 import contactRoutes from "./api/contact/index";
 import emailRouters from "./api/email/index";
+import promBundle from "express-prom-bundle";
 
 const app = express();
 // Trust first proxy (needed for correct client IP with X-Forwarded-For headers)
@@ -105,6 +106,18 @@ app.use((req, res, next) => {
 });
 
 app.use(express.json());
+
+// Setup Prometheus metrics
+const metricsMiddleware = promBundle({
+  includeMethod: true,
+  includePath: true,
+  includeStatusCode: true,
+  includeUp: true,
+  promClient: {
+    collectDefaultMetrics: {}
+  }
+});
+app.use(metricsMiddleware);
 
 // CSRF protection setup - less restrictive for development
 app.use(cookieParser());

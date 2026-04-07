@@ -1,22 +1,18 @@
 # ────────────────────────────────────────────────────────────
 #  Stage 1 – Install dependencies
 # ────────────────────────────────────────────────────────────
-FROM node:20-slim AS deps
+FROM oven/bun:1-slim AS deps
 
 WORKDIR /app
 
 RUN apt-get update -y \
     && apt-get install -y --no-install-recommends \
-       openssl python3 make g++ gcc ca-certificates curl \
+       openssl python3 make g++ gcc ca-certificates \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
-# Install Bun for fast dep installation
-RUN curl -fsSL https://bun.sh/install | bash
-ENV PATH="/root/.bun/bin:$PATH"
-
-COPY package.json bun.lock* ./
-RUN bun install --frozen-lockfile
+COPY package.json ./
+RUN bun install
 
 # ────────────────────────────────────────────────────────────
 #  Stage 2 – Build the Next.js application

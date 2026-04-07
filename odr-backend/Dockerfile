@@ -1,20 +1,16 @@
 # ────────────────────────────────────────────────────────────
 #  Stage 1 – Dependencies + Prisma client generation
 # ────────────────────────────────────────────────────────────
-FROM node:20-slim AS deps
+FROM oven/bun:1-slim AS deps
 
 WORKDIR /app
 
 # System packages required by Prisma (OpenSSL) and node-gyp
 RUN apt-get update -y \
     && apt-get install -y --no-install-recommends \
-       openssl python3 make g++ gcc ca-certificates curl \
+       openssl python3 make g++ gcc ca-certificates \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
-
-# Install Bun (used in the original render.sh workflow)
-RUN curl -fsSL https://bun.sh/install | bash
-ENV PATH="/root/.bun/bin:$PATH"
 
 COPY package.json bun.lock* ./
 RUN bun install --frozen-lockfile

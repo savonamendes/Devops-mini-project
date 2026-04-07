@@ -1,8 +1,8 @@
 "use client";
-import React, { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, ChangeEvent, FormEvent, Fragment } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { motion, AnimatePresence } from "framer-motion"; 
+import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "@/lib/auth";
 import { apiFetch } from "@/lib/api";
 import { Button } from "@/components/ui/button";
@@ -19,10 +19,10 @@ const fadeInUp = {
   visible: {
     opacity: 1,
     y: 0,
-    transition: { 
+    transition: {
       duration: 0.2,
-      ease: [0.25, 0.1, 0.25, 1], // Fast easing function
-      when: "beforeChildren",
+      ease: [0.25, 0.1, 0.25, 1] as [number, number, number, number],
+      when: "beforeChildren" as const,
       staggerChildren: 0.05
     },
   },
@@ -85,7 +85,7 @@ const initialForm = {
   // Tech Enthusiast
   techOrg: "",
   techRole: "",
-  odrLabUsageDescription:"",
+  odrLabUsageDescription: "",
   // Law Enthusiast
   lawFirm: "",
   // Other
@@ -147,7 +147,7 @@ const SignUpPage = () => {
           const jsonPayload = decodeURIComponent(
             atob(base64)
               .split('')
-              .map(function(c) {
+              .map(function (c) {
                 return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
               })
               .join('')
@@ -174,22 +174,22 @@ const SignUpPage = () => {
             const data = await res.json();
             if (!res.ok) throw new Error(data.error || "Google sign-up failed");
 
-           if (data.user) {
-             login(data.user);
-             // Check if user has complete profile info before redirecting to home
-             if (data.user.contactNumber && data.user.city && data.user.country) {
-               router.push("/home");
-             } else {
-               // If incomplete profile, redirect to complete profile with user info
-               const params = new URLSearchParams({
-                 email: data.user.email,
-                 name: data.user.name,
-                 image: payload.picture || "",
-                 fromGoogle: "true"
-               });
-               router.push(`/complete-profile?${params.toString()}`);
-             }
-           } else if (data.needsProfileCompletion) {
+            if (data.user) {
+              login(data.user);
+              // Check if user has complete profile info before redirecting to home
+              if (data.user.contactNumber && data.user.city && data.user.country) {
+                router.push("/home");
+              } else {
+                // If incomplete profile, redirect to complete profile with user info
+                const params = new URLSearchParams({
+                  email: data.user.email,
+                  name: data.user.name,
+                  image: payload.picture || "",
+                  fromGoogle: "true"
+                });
+                router.push(`/complete-profile?${params.toString()}`);
+              }
+            } else if (data.needsProfileCompletion) {
               const params = new URLSearchParams({
                 email: payload.email,
                 name: payload.name,
@@ -224,7 +224,7 @@ const SignUpPage = () => {
   }, [googleScriptLoaded, login, router]);
 
   const handleChange = (
-    e: React.ChangeEvent<
+    e: ChangeEvent<
       HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement
     >
   ) => {
@@ -269,7 +269,7 @@ const SignUpPage = () => {
         setError("Please select whether you're a Student Innovator or Mentor.");
         return;
       }
-      
+
       // Set the userType based on mainUserType and mentorType for backend compatibility
       if (form.mainUserType === "innovator") {
         // For student innovators, keep as student
@@ -351,7 +351,7 @@ const SignUpPage = () => {
     setStep((s) => s - 1);
   };
 
-  const handleSignUp = async (event: React.FormEvent) => {
+  const handleSignUp = async (event: FormEvent) => {
     event.preventDefault();
     setError(null);
     setSuccess(null);
@@ -362,39 +362,33 @@ const SignUpPage = () => {
 
     switch (form.userType) {
       case "student":
-        odrLabUsageDescription = `As a student of ${form.courseName} (${
-          form.courseStatus
-        }) at ${form.studentInstitute}. ${form.odrLabPurpose || ""}`;
+        odrLabUsageDescription = `As a student of ${form.courseName} (${form.courseStatus
+          }) at ${form.studentInstitute}. ${form.odrLabPurpose || ""}`;
         break;
       case "faculty":
-        odrLabUsageDescription = `As a ${form.facultyRole} at ${
-          form.facultyInstitute
-        }, specializing in ${form.facultyExpertise}, teaching ${
-          form.facultyCourse
-        }. ${form.odrLabPurpose || ""}`;
+        odrLabUsageDescription = `As a ${form.facultyRole} at ${form.facultyInstitute
+          }, specializing in ${form.facultyExpertise}, teaching ${form.facultyCourse
+          }. ${form.odrLabPurpose || ""}`;
         break;
       case "tech":
-        odrLabUsageDescription = `As a ${form.techRole} at ${form.techOrg}. ${
-          form.odrLabUsageDescription || ""
-        }`;
+        odrLabUsageDescription = `As a ${form.techRole} at ${form.techOrg}. ${form.odrLabUsageDescription || ""
+          }`;
         break;
       case "law":
-        odrLabUsageDescription = `As a legal professional at ${form.lawFirm}. ${
-          form.odrLabPurpose || ""
-        }`;
+        odrLabUsageDescription = `As a legal professional at ${form.lawFirm}. ${form.odrLabPurpose || ""
+          }`;
         break;
       case "other":
-        odrLabUsageDescription = `As a ${form.otherRole} at ${
-          form.otherWorkplace
-        }. ${form.odrLabPurpose || ""}`;
+        odrLabUsageDescription = `As a ${form.otherRole} at ${form.otherWorkplace
+          }. ${form.odrLabPurpose || ""}`;
         break;
       case "odr":
-        odrLabUsageDescription = `${form.otherWorkplace}. ${form.odrLabPurpose || ""}`; 
+        odrLabUsageDescription = `${form.otherWorkplace}. ${form.odrLabPurpose || ""}`;
         break;
       case "conflict":
         odrLabUsageDescription = `${form.otherWorkplace}. ${form.odrLabPurpose || ""}`;
         break;
-      
+
       default:
         odrLabUsageDescription = form.odrLabPurpose || "";
     }
@@ -418,11 +412,11 @@ const SignUpPage = () => {
             form.userType === "student"
               ? "INNOVATOR"
               : form.userType === "faculty"
-              ? "FACULTY" // Changed from OTHER to FACULTY for clarity
-              : form.userType === "law" || form.userType === "tech" || 
-                form.userType === "odr" || form.userType === "conflict"
-              ? "MENTOR" // All mentor types get MENTOR role but with pending approval
-              : "OTHER",
+                ? "FACULTY" // Changed from OTHER to FACULTY for clarity
+                : form.userType === "law" || form.userType === "tech" ||
+                  form.userType === "odr" || form.userType === "conflict"
+                  ? "MENTOR" // All mentor types get MENTOR role but with pending approval
+                  : "OTHER",
           // Add mentorApproved flag to signal approval status for new mentors
           mentorApproved: false, // Will be false for new mentor signups
           mentorType: form.mentorType || undefined, // Store the specific mentor type
@@ -435,35 +429,35 @@ const SignUpPage = () => {
             undefined,
           highestEducation: form.highestEducation || undefined,
           odrLabUsage: odrLabUsageDescription,
-          
+
           // Include all form fields for detailed metadata storage
           // Student fields
           studentInstitute: form.studentInstitute,
           courseStatus: form.courseStatus,
           courseName: form.courseName,
-          
+
           // Faculty fields
           facultyInstitute: form.facultyInstitute,
           facultyRole: form.facultyRole,
           facultyExpertise: form.facultyExpertise,
           facultyCourse: form.facultyCourse,
           facultyMentor: form.facultyMentor,
-          
+
           // Tech mentor fields
           techOrg: form.techOrg,
           techRole: form.techRole,
-          
+
           // Law mentor fields
           lawFirm: form.lawFirm,
-          
+
           // Other fields
           otherRole: form.otherRole,
           otherWorkplace: form.otherWorkplace,
-          
+
           // Selected user types
           mainUserType: form.mainUserType,
           userType: form.userType,
-          
+
           // Purpose and additional info
           odrLabPurpose: form.odrLabPurpose
         }),
@@ -607,20 +601,19 @@ const SignUpPage = () => {
             className="space-y-6">
             <motion.div variants={fadeInUp}>
               <h3 className="text-xl font-medium text-center text-[#0a1e42] mb-6">How would you like to join ODR Lab?</h3>
-              
+
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
                 {/* Student Innovator Option */}
                 <motion.div
                   variants={fadeInUp}
                   whileHover={{ scale: 1.02 }}
-                  className={`border p-5 rounded-lg cursor-pointer transition-all shadow-sm hover:shadow-md ${
-                    form.mainUserType === "innovator"
+                  className={`border p-5 rounded-lg cursor-pointer transition-all shadow-sm hover:shadow-md ${form.mainUserType === "innovator"
                       ? "bg-blue-50 border-blue-500 ring-2 ring-blue-200"
                       : "border-gray-300 hover:border-blue-300"
-                  }`}
+                    }`}
                   onClick={() =>
-                    setForm((prev) => ({ 
-                      ...prev, 
+                    setForm((prev) => ({
+                      ...prev,
                       mainUserType: "innovator",
                       mentorType: "" // Reset mentor type when switching
                     }))
@@ -637,16 +630,15 @@ const SignUpPage = () => {
                     </p>
                   </div>
                 </motion.div>
-                
+
                 {/* Mentor Option */}
                 <motion.div
                   variants={fadeInUp}
                   whileHover={{ scale: 1.02 }}
-                  className={`border p-5 rounded-lg cursor-pointer transition-all shadow-sm hover:shadow-md ${
-                    form.mainUserType === "mentor"
+                  className={`border p-5 rounded-lg cursor-pointer transition-all shadow-sm hover:shadow-md ${form.mainUserType === "mentor"
                       ? "bg-purple-50 border-purple-500 ring-2 ring-purple-200"
                       : "border-gray-300 hover:border-purple-300"
-                  }`}
+                    }`}
                   onClick={() =>
                     setForm((prev) => ({ ...prev, mainUserType: "mentor" }))
                   }>
@@ -662,19 +654,18 @@ const SignUpPage = () => {
                     </p>
                   </div>
                 </motion.div>
-                
+
                 {/* Faculty Option */}
                 <motion.div
                   variants={fadeInUp}
                   whileHover={{ scale: 1.02 }}
-                  className={`border p-5 rounded-lg cursor-pointer transition-all shadow-sm hover:shadow-md ${
-                    form.mainUserType === "faculty"
+                  className={`border p-5 rounded-lg cursor-pointer transition-all shadow-sm hover:shadow-md ${form.mainUserType === "faculty"
                       ? "bg-teal-50 border-teal-500 ring-2 ring-teal-200"
                       : "border-gray-300 hover:border-teal-300"
-                  }`}
+                    }`}
                   onClick={() =>
-                    setForm((prev) => ({ 
-                      ...prev, 
+                    setForm((prev) => ({
+                      ...prev,
                       mainUserType: "faculty",
                       mentorType: "" // Reset mentor type when switching
                     }))
@@ -693,19 +684,18 @@ const SignUpPage = () => {
                     </p>
                   </div>
                 </motion.div>
-                
+
                 {/* Other Option */}
                 <motion.div
                   variants={fadeInUp}
                   whileHover={{ scale: 1.02 }}
-                  className={`border p-5 rounded-lg cursor-pointer transition-all shadow-sm hover:shadow-md ${
-                    form.mainUserType === "other"
+                  className={`border p-5 rounded-lg cursor-pointer transition-all shadow-sm hover:shadow-md ${form.mainUserType === "other"
                       ? "bg-amber-50 border-amber-500 ring-2 ring-amber-200"
                       : "border-gray-300 hover:border-amber-300"
-                  }`}
+                    }`}
                   onClick={() =>
-                    setForm((prev) => ({ 
-                      ...prev, 
+                    setForm((prev) => ({
+                      ...prev,
                       mainUserType: "other",
                       mentorType: "" // Reset mentor type when switching
                     }))
@@ -718,12 +708,12 @@ const SignUpPage = () => {
                     </div>
                     <div className="font-bold text-lg text-amber-800">Other</div>
                     <p className="text-sm text-gray-600 mt-2">
-                     Join to discover innovative ODR ideas and stay inspired by the latest advancements.
+                      Join to discover innovative ODR ideas and stay inspired by the latest advancements.
                     </p>
                   </div>
                 </motion.div>
               </div>
-              
+
               {/* Show mentor type selection only if mentor is selected */}
               {form.mainUserType === "mentor" && (
                 <motion.div
@@ -734,7 +724,7 @@ const SignUpPage = () => {
                   <h4 className="font-medium text-indigo-800 mb-4">Please select your mentor type:</h4>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {mentorTypes.map((type) => (
-                        <motion.div
+                      <motion.div
                         key={type.value}
                         variants={fadeInUp}
                         initial={{ opacity: 1, y: 0 }} // Start visible immediately
@@ -742,37 +732,35 @@ const SignUpPage = () => {
                         transition={{ duration: 0.1 }} // Very fast transition
                         whileHover={{ scale: 1.05, transition: { duration: 0.2 } }}
                         whileTap={{ scale: 0.98 }}
-                        className={`border-2 p-4 rounded-lg cursor-pointer transition-all shadow-sm hover:shadow-md ${
-                          form.mentorType === type.value
-                          ? type.value === "tech" 
-                            ? "bg-blue-100 border-blue-500 ring-2 ring-blue-300" 
-                            : type.value === "law" 
-                            ? "bg-amber-100 border-amber-500 ring-2 ring-amber-300"
-                            : type.value === "odr" 
-                            ? "bg-emerald-100 border-emerald-500 ring-2 ring-emerald-300"
-                            : "bg-purple-100 border-purple-500 ring-2 ring-purple-300"
-                          : "border-gray-300 hover:border-indigo-300"
-                        }`}
+                        className={`border-2 p-4 rounded-lg cursor-pointer transition-all shadow-sm hover:shadow-md ${form.mentorType === type.value
+                            ? type.value === "tech"
+                              ? "bg-blue-100 border-blue-500 ring-2 ring-blue-300"
+                              : type.value === "law"
+                                ? "bg-amber-100 border-amber-500 ring-2 ring-amber-300"
+                                : type.value === "odr"
+                                  ? "bg-emerald-100 border-emerald-500 ring-2 ring-emerald-300"
+                                  : "bg-purple-100 border-purple-500 ring-2 ring-purple-300"
+                            : "border-gray-300 hover:border-indigo-300"
+                          }`}
                         onClick={() =>
                           setForm((prev) => ({ ...prev, mentorType: type.value }))
                         }>
-                        <motion.div 
+                        <motion.div
                           initial={{ opacity: 0 }}
                           animate={{ opacity: 1 }}
                           transition={{ duration: 0.3 }}
                           className="font-medium">
-                          
-                          <div className={`text-lg mb-2 font-bold ${
-                            type.value === "tech" ? "text-blue-700" : 
-                            type.value === "law" ? "text-amber-700" :
-                            type.value === "odr" ? "text-emerald-700" :
-                            "text-purple-700"
-                          }`}>
+
+                          <div className={`text-lg mb-2 font-bold ${type.value === "tech" ? "text-blue-700" :
+                              type.value === "law" ? "text-amber-700" :
+                                type.value === "odr" ? "text-emerald-700" :
+                                  "text-purple-700"
+                            }`}>
                             {type.label}
                           </div>
-                          
+
                           {type.value === "tech" && (
-                            <motion.p 
+                            <motion.p
                               initial={{ y: 5, opacity: 0 }}
                               animate={{ y: 0, opacity: 1 }}
                               transition={{ delay: 0.1, duration: 0.2 }}
@@ -781,7 +769,7 @@ const SignUpPage = () => {
                             </motion.p>
                           )}
                           {type.value === "law" && (
-                            <motion.p 
+                            <motion.p
                               initial={{ y: 5, opacity: 0 }}
                               animate={{ y: 0, opacity: 1 }}
                               transition={{ delay: 0.1, duration: 0.2 }}
@@ -790,7 +778,7 @@ const SignUpPage = () => {
                             </motion.p>
                           )}
                           {type.value === "odr" && (
-                            <motion.p 
+                            <motion.p
                               initial={{ y: 5, opacity: 0 }}
                               animate={{ y: 0, opacity: 1 }}
                               transition={{ delay: 0.1, duration: 0.2 }}
@@ -799,7 +787,7 @@ const SignUpPage = () => {
                             </motion.p>
                           )}
                           {type.value === "conflict" && (
-                            <motion.p 
+                            <motion.p
                               initial={{ y: 5, opacity: 0 }}
                               animate={{ y: 0, opacity: 1 }}
                               transition={{ delay: 0.1, duration: 0.2 }}
@@ -807,17 +795,17 @@ const SignUpPage = () => {
                               For professionals with expertise in conflict management techniques
                             </motion.p>
                           )}
-                        
+
                         </motion.div>
-                  </motion.div>  
-                    ))}    
-                  </div>      
+                      </motion.div>
+                    ))}
+                  </div>
                 </motion.div>
               )}
             </motion.div>
           </motion.div>
-      );
-    
+        );
+
       // the info step 
       case 2:
         return (
@@ -830,85 +818,85 @@ const SignUpPage = () => {
             className="space-y-6">
             {/* Render fields based on user type */}
             {form.userType === "student" && (
-                <motion.div
+              <motion.div
                 initial="hidden"
                 animate="visible"
                 variants={staggerContainer}>
                 <motion.div variants={fadeInUp} className="mb-6">
                   <h3 className="text-lg font-medium text-blue-800 mb-4">Student Innovator Information</h3>
                   <p className="text-sm text-gray-600 mb-6">Please provide your academic details to help us customize your experience</p>
-                  
+
                   <div className="space-y-4 pt-2">
-                  <div>
-                    <Label htmlFor="highestEducation" className="text-blue-700">Highest Education</Label>
-                    <Input
-                    id="highestEducation"
-                    name="highestEducation"
-                    value={form.highestEducation}
-                    onChange={handleChange}
-                    placeholder="Your highest education qualification"
-                    className="mt-1"
-                    required
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="studentInstitute" className="text-blue-700">Institute</Label>
-                    <Input
-                    id="studentInstitute"
-                    name="studentInstitute"
-                    value={form.studentInstitute}
-                    onChange={handleChange}
-                    placeholder="Your institute or university name"
-                    className="mt-1"
-                    required
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="courseName" className="text-blue-700">Course/Program Name</Label>
-                    <Input
-                    id="courseName"
-                    name="courseName"
-                    value={form.courseName}
-                    onChange={handleChange}
-                    placeholder="Your course or program name"
-                    className="mt-1"
-                    required
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="courseStatus" className="text-blue-700">Course Status</Label>
-                    <select
-                    id="courseStatus"
-                    name="courseStatus"
-                    className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 mt-1"
-                    value={form.courseStatus}
-                    onChange={handleChange}
-                    required>
-                    <option value="">Select status</option>
-                    <option value="ongoing">Ongoing</option>
-                    <option value="completed">Completed</option>
-                    </select>
-                  </div>
-                  <div>
-                    <Label htmlFor="odrLabPurpose" className="text-blue-700">
-                    Purpose for joining ODR Lab
-                    </Label>
-                    <Textarea
-                    id="odrLabPurpose"
-                    name="odrLabPurpose"
-                    value={form.odrLabPurpose}
-                    onChange={handleChange}
-                    placeholder="Why do you want to join the ODR Lab? What are your innovation goals? How will this platform help your academic or personal growth?"
-                    rows={6}
-                    className="mt-1"
-                    />
-                    <p className="text-xs text-gray-500 mt-2">
-                    Your response helps us understand your goals and how we can better support your innovation journey.
-                    </p>
-                  </div>
+                    <div>
+                      <Label htmlFor="highestEducation" className="text-blue-700">Highest Education</Label>
+                      <Input
+                        id="highestEducation"
+                        name="highestEducation"
+                        value={form.highestEducation}
+                        onChange={handleChange}
+                        placeholder="Your highest education qualification"
+                        className="mt-1"
+                        required
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="studentInstitute" className="text-blue-700">Institute</Label>
+                      <Input
+                        id="studentInstitute"
+                        name="studentInstitute"
+                        value={form.studentInstitute}
+                        onChange={handleChange}
+                        placeholder="Your institute or university name"
+                        className="mt-1"
+                        required
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="courseName" className="text-blue-700">Course/Program Name</Label>
+                      <Input
+                        id="courseName"
+                        name="courseName"
+                        value={form.courseName}
+                        onChange={handleChange}
+                        placeholder="Your course or program name"
+                        className="mt-1"
+                        required
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="courseStatus" className="text-blue-700">Course Status</Label>
+                      <select
+                        id="courseStatus"
+                        name="courseStatus"
+                        className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 mt-1"
+                        value={form.courseStatus}
+                        onChange={handleChange}
+                        required>
+                        <option value="">Select status</option>
+                        <option value="ongoing">Ongoing</option>
+                        <option value="completed">Completed</option>
+                      </select>
+                    </div>
+                    <div>
+                      <Label htmlFor="odrLabPurpose" className="text-blue-700">
+                        Purpose for joining ODR Lab
+                      </Label>
+                      <Textarea
+                        id="odrLabPurpose"
+                        name="odrLabPurpose"
+                        value={form.odrLabPurpose}
+                        onChange={handleChange}
+                        placeholder="Why do you want to join the ODR Lab? What are your innovation goals? How will this platform help your academic or personal growth?"
+                        rows={6}
+                        className="mt-1"
+                      />
+                      <p className="text-xs text-gray-500 mt-2">
+                        Your response helps us understand your goals and how we can better support your innovation journey.
+                      </p>
+                    </div>
                   </div>
                 </motion.div>
-                </motion.div>
+              </motion.div>
             )}
             {/* Faculty Mentor */}
             {form.userType === "faculty" && (
@@ -1007,7 +995,7 @@ const SignUpPage = () => {
                   <p className="text-sm text-gray-600 mb-6">
                     As a technical mentor, you will guide students in developing innovative technology solutions.
                   </p>
-                  
+
                   <div className="space-y-4 pt-2">
                     <div>
                       <Label htmlFor="techOrg" className="text-indigo-700">Organization/Company</Label>
@@ -1069,61 +1057,61 @@ const SignUpPage = () => {
 
             {/* Law Enthusiast Mentor */}
             {form.userType === "law" && (
-                <motion.div
+              <motion.div
                 initial="hidden"
                 animate="visible"
                 variants={staggerContainer}>
                 <motion.div variants={fadeInUp} className="mb-6">
                   <h3 className="text-lg font-medium text-indigo-800 mb-4">Law Enthusiast Mentor</h3>
                   <p className="text-sm text-gray-600 mb-6">
-                  As a legal mentor, you&apos;ll provide guidance on legal and regulatory aspects of student innovations.
+                    As a legal mentor, you&apos;ll provide guidance on legal and regulatory aspects of student innovations.
                   </p>
-                  
+
                   <div className="space-y-4 pt-2">
-                  <div>
-                    <Label htmlFor="lawFirm" className="text-indigo-700">Law Firm/Organization</Label>
-                    <Input
-                    id="lawFirm"
-                    name="lawFirm"
-                    value={form.lawFirm}
-                    onChange={handleChange}
-                    placeholder="Your law firm or organization name"
-                    className="mt-1"
-                    required
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="highestEducation" className="text-indigo-700">Legal Education</Label>
-                    <Input
-                    id="highestEducation"
-                    name="highestEducation"
-                    value={form.highestEducation}
-                    onChange={handleChange}
-                    placeholder="Your legal education (e.g., LLB, JD)"
-                    className="mt-1"
-                    required
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="odrLabPurpose" className="text-indigo-700">
-                    Legal Expertise & Mentoring Approach
-                    </Label>
-                    <Textarea
-                    id="odrLabPurpose"
-                    name="odrLabPurpose"
-                    value={form.odrLabPurpose}
-                    onChange={handleChange}
-                    placeholder="Share your expertise which can benefit student innovators in ODR Lab"
-                    rows={6}
-                    className="mt-1"
-                    />
-                    <p className="text-xs text-gray-500 mt-2">
-                    Your legal expertise will be invaluable in guiding students through complex regulatory landscapes.
-                    </p>
-                  </div>
+                    <div>
+                      <Label htmlFor="lawFirm" className="text-indigo-700">Law Firm/Organization</Label>
+                      <Input
+                        id="lawFirm"
+                        name="lawFirm"
+                        value={form.lawFirm}
+                        onChange={handleChange}
+                        placeholder="Your law firm or organization name"
+                        className="mt-1"
+                        required
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="highestEducation" className="text-indigo-700">Legal Education</Label>
+                      <Input
+                        id="highestEducation"
+                        name="highestEducation"
+                        value={form.highestEducation}
+                        onChange={handleChange}
+                        placeholder="Your legal education (e.g., LLB, JD)"
+                        className="mt-1"
+                        required
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="odrLabPurpose" className="text-indigo-700">
+                        Legal Expertise & Mentoring Approach
+                      </Label>
+                      <Textarea
+                        id="odrLabPurpose"
+                        name="odrLabPurpose"
+                        value={form.odrLabPurpose}
+                        onChange={handleChange}
+                        placeholder="Share your expertise which can benefit student innovators in ODR Lab"
+                        rows={6}
+                        className="mt-1"
+                      />
+                      <p className="text-xs text-gray-500 mt-2">
+                        Your legal expertise will be invaluable in guiding students through complex regulatory landscapes.
+                      </p>
+                    </div>
                   </div>
                 </motion.div>
-                </motion.div>
+              </motion.div>
             )}
 
             {/* ODR Expert Mentor */}
@@ -1137,7 +1125,7 @@ const SignUpPage = () => {
                   <p className="text-sm text-gray-600 mb-6">
                     As an ODR expert, you&apos;ll guide students in understanding and implementing online dispute resolution systems.
                   </p>
-                  
+
                   <div className="space-y-4">
                     <div>
                       <Label htmlFor="otherWorkplace" className="text-indigo-700">Organization/Institution</Label>
@@ -1190,7 +1178,7 @@ const SignUpPage = () => {
                   <p className="text-sm text-gray-600 mb-6">
                     As a conflict resolution expert, you will guide students in understanding effective dispute management and resolution techniques.
                   </p>
-                  
+
                   <div className="space-y-4">
                     <div>
                       <Label htmlFor="otherWorkplace" className="text-indigo-700">Organization/Institution</Label>
@@ -1293,7 +1281,7 @@ const SignUpPage = () => {
             )}
           </motion.div>
         );
-        // the review step
+      // the review step
       case 3:
         return (
           <motion.div
@@ -1308,7 +1296,7 @@ const SignUpPage = () => {
               variants={fadeInUp}>
               <h3 className="text-lg font-medium text-[#0a1e42]">Review Your Information</h3>
               <p className="text-sm text-gray-600">Please verify all the details before submitting your registration</p>
-              
+
               <div className="bg-gray-50 p-4 rounded-lg border border-gray-200 space-y-3 max-h-[400px] overflow-y-auto">
                 <div className="grid gap-3">
                   {/* Personal Information Section */}
@@ -1317,19 +1305,19 @@ const SignUpPage = () => {
                   </h4>
                   <div className="grid grid-cols-2 gap-2">
                     <div>
-                      <span className="font-medium text-sm text-gray-700">Name:</span> 
+                      <span className="font-medium text-sm text-gray-700">Name:</span>
                       <p className="text-gray-900">{form.name}</p>
                     </div>
                     <div>
-                      <span className="font-medium text-sm text-gray-700">Email:</span> 
+                      <span className="font-medium text-sm text-gray-700">Email:</span>
                       <p className="text-gray-900">{form.email}</p>
                     </div>
                     <div>
-                      <span className="font-medium text-sm text-gray-700">Mobile:</span> 
+                      <span className="font-medium text-sm text-gray-700">Mobile:</span>
                       <p className="text-gray-900">{form.mobile}</p>
                     </div>
                     <div>
-                      <span className="font-medium text-sm text-gray-700">Location:</span> 
+                      <span className="font-medium text-sm text-gray-700">Location:</span>
                       <p className="text-gray-900">{form.city}, {form.country}</p>
                     </div>
                   </div>
@@ -1341,13 +1329,13 @@ const SignUpPage = () => {
                   <div>
                     <span className="font-medium text-sm text-gray-700">Primary Role:</span>{" "}
                     <p className="text-gray-900">
-                      {form.mainUserType === "innovator" 
+                      {form.mainUserType === "innovator"
                         ? "Student Innovator"
                         : form.mainUserType === "mentor"
-                        ? "Mentor"
-                        : form.mainUserType === "faculty"
-                        ? "Faculty"
-                        : "Other"
+                          ? "Mentor"
+                          : form.mainUserType === "faculty"
+                            ? "Faculty"
+                            : "Other"
                       }
                     </p>
                   </div>
@@ -1356,10 +1344,10 @@ const SignUpPage = () => {
                     <div>
                       <span className="font-medium text-sm text-gray-700">Mentor Type:</span>{" "}
                       <p className="text-gray-900">
-                        {form.mentorType === "tech" ? "Technical Expert" : 
-                         form.mentorType === "law" ? "Legal Expert" : 
-                         form.mentorType === "odr" ? "ODR Expert" : 
-                         form.mentorType === "conflict" ? "Conflict Resolution Expert" : ""}
+                        {form.mentorType === "tech" ? "Technical Expert" :
+                          form.mentorType === "law" ? "Legal Expert" :
+                            form.mentorType === "odr" ? "ODR Expert" :
+                              form.mentorType === "conflict" ? "Conflict Resolution Expert" : ""}
                       </p>
                     </div>
                   )}
@@ -1516,13 +1504,13 @@ const SignUpPage = () => {
               </div> */}
             </motion.div>
           </motion.div>
-      )
+        )
       default:
         return null;
     };
   }
 
-return (
+  return (
     <motion.div
       className="flex flex-col items-center justify-center h-full bg-gray-100 text-gray-900 p-6 relative"
       initial={{ opacity: 0 }}
@@ -1599,8 +1587,8 @@ return (
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.5, delay: 0.3 }}>
                 {/* Google Sign In Button Container - with ref */}
-                <div 
-                  id="google-signin-container" 
+                <div
+                  id="google-signin-container"
                   ref={googleButtonRef}
                   className="w-full h-12 flex justify-center"
                 >
@@ -1611,16 +1599,16 @@ return (
                       disabled={loading}
                       className="w-full h-12 bg-white hover:bg-gray-50 text-gray-700 border border-gray-300 font-medium transition-all duration-200 flex items-center justify-center space-x-3 ">
                       <svg className="w-5 h-5" viewBox="0 0 24 24">
-                        <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
-                        <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
-                        <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
-                        <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+                        <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
+                        <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
+                        <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" />
+                        <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" />
                       </svg>
                       <span>Sign up with Google</span>
                     </Button>
                   )}
                 </div>
-                
+
                 <div className="relative">
                   <div className="absolute inset-0 flex items-center">
                     <div className="w-full border-t border-gray-300"></div>
@@ -1639,25 +1627,23 @@ return (
               transition={{ delay: 0.3, duration: 0.5 }}>
               <div className="flex items-center w-full max-w-md">
                 {steps.map((stepName, i) => (
-                  <React.Fragment key={i}>
+                  <Fragment key={i}>
                     <div className="flex flex-col items-center">
                       <div
-                        className={`w-8 h-8 rounded-full flex items-center justify-center text-sm ${
-                          i <= step
+                        className={`w-8 h-8 rounded-full flex items-center justify-center text-sm ${i <= step
                             ? "bg-[#0a1e42] text-white"
                             : "bg-gray-200 text-gray-600"
-                        }`}>
+                          }`}>
                         {i + 1}
                       </div>
                       <span className="text-xs mt-1">{stepName}</span>
                     </div>
                     {i < steps.length - 1 && (
                       <div
-                        className={`h-1 flex-1 mx-1 ${
-                          i < step ? "bg-[#0a1e42]" : "bg-gray-200"
-                        }`}></div>
+                        className={`h-1 flex-1 mx-1 ${i < step ? "bg-[#0a1e42]" : "bg-gray-200"
+                          }`}></div>
                     )}
-                  </React.Fragment>
+                  </Fragment>
                 ))}
               </div>
             </motion.div>
@@ -1724,7 +1710,7 @@ return (
                 </Button>
               )}
             </motion.div>
-              {/* main account signup form common for all users. the bottom part of the main form  */}
+            {/* main account signup form common for all users. the bottom part of the main form  */}
             {step === 0 && (
               <motion.div
                 className="mt-6 text-center text-sm text-gray-500"
@@ -1743,7 +1729,7 @@ return (
         )}
       </motion.div>
     </motion.div>
-);
+  );
 
 }
 

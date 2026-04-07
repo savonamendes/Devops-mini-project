@@ -31,22 +31,11 @@ services:
     restart: unless-stopped
     # ⚠️  No `ports:` block → backend is NOT reachable from the host or internet.
     #     The frontend container reaches it via http://backend:4000 (internal DNS).
+    env_file:
+      - ./odr-backend/.env.production
     environment:
-      NODE_ENV: production
-      # Prisma / AWS RDS connection string
-      DATABASE_URL: ${DATABASE_URL}
-      # JWT signing secret
-      JWT_SECRET: ${JWT_SECRET}
-      # Together AI (chatbot)
-      TOGETHER_API_KEY: ${TOGETHER_API_KEY}
-      # SendGrid e-mail
-      SENDGRID_API_KEY: ${SENDGRID_API_KEY}
-      SENDGRID_FROM_EMAIL: ${SENDGRID_FROM_EMAIL:-noreply@odrlab.com}
-      # Session config
-      SESSION_SECRET: ${SESSION_SECRET}
-      SESSION_DURATION_HOURS: ${SESSION_DURATION_HOURS:-24}
-      # Port the process listens on (must match EXPOSE in Dockerfile)
-      PORT: 4000
+      # Override / add values that must be set at runtime by Docker, not from file
+      FRONTEND_URL: http://frontend:3000
     networks:
       - private_net
     healthcheck:
@@ -65,21 +54,19 @@ services:
       context: ./odrindia
       dockerfile: Dockerfile
       args:
-        # NEXT_PUBLIC_* vars must be baked in at build time
-        NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:-http://localhost/api}
-        NEXT_PUBLIC_GOOGLE_CLIENT_ID: ${NEXT_PUBLIC_GOOGLE_CLIENT_ID}
-        NEXT_PUBLIC_JITSI_SERVER: ${NEXT_PUBLIC_JITSI_SERVER:-meet.jit.si}
-        NEXT_PUBLIC_JITSI_ROOM_PREFIX: ${NEXT_PUBLIC_JITSI_ROOM_PREFIX:-odrindia-}
+        # NEXT_PUBLIC_* vars must be baked in at build time – sourced from odrindia/.env.production
+        NEXT_PUBLIC_API_BASE_URL: https://api.odrlab.com/api
+        NEXT_PUBLIC_GOOGLE_CLIENT_ID: 700845914621-hj3l8tm0v7u8isrp98h0ff9vlp75e7ru.apps.googleusercontent.com
+        NEXT_PUBLIC_JITSI_SERVER: meet.jit.si
+        NEXT_PUBLIC_JITSI_ROOM_PREFIX: odrindia-
     restart: unless-stopped
     ports:
       - "3000:3000"      # Change to "80:3000" or use nginx in front when going to production
+    env_file:
+      - ./odrindia/.env.production
     environment:
-      NODE_ENV: production
-      # Runtime-only secrets (not baked into the bundle)
-      # The internal Docker URL the Next.js server uses to call the backend
+      # Override BACKEND_URL so Next.js server-side calls go through the private network
       BACKEND_URL: http://backend:4000
-      JWT_SECRET: ${JWT_SECRET}
-      SESSION_SECRET: ${SESSION_SECRET}
       NEXT_TELEMETRY_DISABLED: "1"
     depends_on:
       backend:
@@ -93,6 +80,44 @@ services:
       retries: 3
       start_period: 30s
 
+  # ─────────────────────────────────────────────
+  #  PROMETHEUS  –  Metrics collection (port 9090)
+  # ─────────────────────────────────────────────
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: prometheus
+    restart: unless-stopped
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus_data:/prometheus
+    networks:
+      - private_net
+    depends_on:
+      backend:
+        condition: service_healthy
+
+  # ─────────────────────────────────────────────
+  #  GRAFANA  –  Metrics visualization (port 3001)
+  # ─────────────────────────────────────────────
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana
+    restart: unless-stopped
+    ports:
+      - "3001:3000" # Mapped to 3001 as 3000 is used by frontend
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_USERS_ALLOW_SIGN_UP=false
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./prometheus/grafana/provisioning:/etc/grafana/provisioning
+    networks:
+      - private_net
+    depends_on:
+      - prometheus
+
 # ─────────────────────────────────────────────
 #  Networks
 # ─────────────────────────────────────────────
@@ -104,3 +129,10 @@ networks:
     # We leave it as a normal bridge so containers can reach external services,
     # but we rely on NEVER publishing backend ports to keep it off the internet.
     internal: false
+
+# ─────────────────────────────────────────────
+#  Volumes
+# ─────────────────────────────────────────────
+volumes:
+  prometheus_data:
+  grafana_data:
