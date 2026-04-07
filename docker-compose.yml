@@ -172,6 +172,9 @@ services:
       - "5601:5601"
     environment:
       - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
+      - xpack.security.enabled=false
+      - xpack.fleet.agents.fleet_server.hosts=[]
+      - xpack.synthetics.enabled=false
     networks:
       - private_net
     depends_on:
