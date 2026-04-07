@@ -39,7 +39,7 @@ services:
     networks:
       - private_net
     healthcheck:
-      test: ["CMD-SHELL", "node -e \"require('http').get('http://localhost:4000/api/csrf-token', r => process.exit(r.statusCode === 200 ? 0 : 1)).on('error', () => process.exit(1))\""]
+      test: [ "CMD-SHELL", "node -e \"require('http').get('http://localhost:4000/api/csrf-token', r => process.exit(r.statusCode === 200 ? 0 : 1)).on('error', () => process.exit(1))\"" ]
       interval: 30s
       timeout: 10s
       retries: 5
@@ -55,26 +55,26 @@ services:
       dockerfile: Dockerfile
       args:
         # NEXT_PUBLIC_* vars must be baked in at build time – sourced from odrindia/.env.production
-        NEXT_PUBLIC_API_BASE_URL: https://api.odrlab.com/api
+        NEXT_PUBLIC_API_BASE_URL: http://localhost:4000/api
         NEXT_PUBLIC_GOOGLE_CLIENT_ID: 700845914621-hj3l8tm0v7u8isrp98h0ff9vlp75e7ru.apps.googleusercontent.com
         NEXT_PUBLIC_JITSI_SERVER: meet.jit.si
         NEXT_PUBLIC_JITSI_ROOM_PREFIX: odrindia-
     restart: unless-stopped
     ports:
-      - "3000:3000"      # Change to "80:3000" or use nginx in front when going to production
+      - "3000:3000" # Change to "80:3000" or use nginx in front when going to production
     env_file:
       - ./odrindia/.env.production
     environment:
       # Override BACKEND_URL so Next.js server-side calls go through the private network
-      BACKEND_URL: http://backend:4000
+      BACKEND_URL: http://backend:4000/api
       NEXT_TELEMETRY_DISABLED: "1"
     depends_on:
       backend:
         condition: service_healthy
     networks:
-      - private_net   # same network so it can reach backend by DNS name
+      - private_net # same network so it can reach backend by DNS name
     healthcheck:
-      test: ["CMD-SHELL", "node -e \"require('http').get('http://localhost:3000', r => process.exit(r.statusCode < 500 ? 0 : 1)).on('error', () => process.exit(1))\""]
+      test: [ "CMD-SHELL", "node -e \"require('http').get('http://localhost:3000', r => process.exit(r.statusCode < 500 ? 0 : 1)).on('error', () => process.exit(1))\"" ]
       interval: 30s
       timeout: 10s
       retries: 3

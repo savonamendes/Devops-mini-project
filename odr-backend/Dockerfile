@@ -13,7 +13,7 @@ RUN apt-get update -y \
     && rm -rf /var/lib/apt/lists/*
 
 COPY package.json bun.lock* ./
-RUN bun install --frozen-lockfile
+RUN bun install
 
 # Copy Prisma schema and generate the client
 COPY prisma ./prisma
