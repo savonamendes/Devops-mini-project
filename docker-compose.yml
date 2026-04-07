@@ -29,8 +29,9 @@ services:
       context: ./odr-backend
       dockerfile: Dockerfile
     restart: unless-stopped
-    # ⚠️  No `ports:` block → backend is NOT reachable from the host or internet.
-    #     The frontend container reaches it via http://backend:4000 (internal DNS).
+    ports:
+      - "4000:4000"
+    # The frontend container reaches it via http://backend:4000 (internal DNS).
     env_file:
       - ./odr-backend/.env.production
     environment:
@@ -38,6 +39,11 @@ services:
       FRONTEND_URL: http://frontend:3000
     networks:
       - private_net
+    logging:
+      driver: "gelf"
+      options:
+        gelf-address: "udp://127.0.0.1:12201"
+        tag: "backend"
     healthcheck:
       test: [ "CMD-SHELL", "node -e \"require('http').get('http://localhost:4000/api/csrf-token', r => process.exit(r.statusCode === 200 ? 0 : 1)).on('error', () => process.exit(1))\"" ]
       interval: 30s
@@ -73,6 +79,11 @@ services:
         condition: service_healthy
     networks:
       - private_net # same network so it can reach backend by DNS name
+    logging:
+      driver: "gelf"
+      options:
+        gelf-address: "udp://127.0.0.1:12201"
+        tag: "frontend"
     healthcheck:
       test: [ "CMD-SHELL", "node -e \"require('http').get('http://localhost:3000', r => process.exit(r.statusCode < 500 ? 0 : 1)).on('error', () => process.exit(1))\"" ]
       interval: 30s
@@ -118,6 +129,54 @@ services:
     depends_on:
       - prometheus
 
+  # ─────────────────────────────────────────────
+  #  ELASTICSEARCH  –  Log Storage (port 9200)
+  # ─────────────────────────────────────────────
+  elasticsearch:
+    image: elasticsearch:8.12.0
+    container_name: elasticsearch
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+      - xpack.security.http.ssl.enabled=false
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+    ports:
+      - "9200:9200"
+    volumes:
+      - elasticsearch_data:/usr/share/elasticsearch/data
+    networks:
+      - private_net
+
+  # ─────────────────────────────────────────────
+  #  LOGSTASH  –  Log Processing (port 12201 UDP)
+  # ─────────────────────────────────────────────
+  logstash:
+    image: logstash:8.12.0
+    container_name: logstash
+    volumes:
+      - ./logstash/pipeline:/usr/share/logstash/pipeline
+    ports:
+      - "12201:12201/udp"
+    networks:
+      - private_net
+    depends_on:
+      - elasticsearch
+
+  # ─────────────────────────────────────────────
+  #  KIBANA  –  Log Dashboard (port 5601)
+  # ─────────────────────────────────────────────
+  kibana:
+    image: kibana:8.12.0
+    container_name: kibana
+    ports:
+      - "5601:5601"
+    environment:
+      - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
+    networks:
+      - private_net
+    depends_on:
+      - elasticsearch
+
 # ─────────────────────────────────────────────
 #  Networks
 # ─────────────────────────────────────────────
@@ -136,3 +195,4 @@ networks:
 volumes:
   prometheus_data:
   grafana_data:
+  elasticsearch_data:

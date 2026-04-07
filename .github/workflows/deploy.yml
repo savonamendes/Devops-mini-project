@@ -1,0 +1,56 @@
+name: Deploy to EC2
+
+on:
+  push:
+    branches:
+      - main  # Trigger deployment on push to the main branch
+  workflow_dispatch: # Also allow manual trigger of the workflow
+
+jobs:
+  deploy:
+    name: Deploy Application
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Copy project files to EC2 instance
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USERNAME }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          # Exclude .git to make file transfer faster
+          source: "."
+          target: "~/deploy-odr-app"
+          rm: true # Clean up the target directory before copying
+
+      - name: Execute deployment commands via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        env:
+          FRONTEND_ENV: ${{ secrets.FRONTEND_ENV_PRODUCTION }}
+          BACKEND_ENV: ${{ secrets.BACKEND_ENV_PRODUCTION }}
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USERNAME }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          envs: FRONTEND_ENV,BACKEND_ENV
+          script: |
+            cd ~/deploy-odr-app
+            
+            # Ensure directories exist
+            mkdir -p odrindia odr-backend
+            
+            # Create the .env.production files using the GitHub Secrets
+            echo "$FRONTEND_ENV" > odrindia/.env.production
+            echo "$BACKEND_ENV" > odr-backend/.env.production
+            
+            # Stop existing containers
+            docker compose down || true
+            
+            # Build and deploy the Docker containers in detached mode
+            docker compose up -d --build
+            
+            # Prune dangling/unused images to save disk space on EC2
+            docker image prune -af
