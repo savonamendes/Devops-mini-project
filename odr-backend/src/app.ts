@@ -18,6 +18,7 @@ import cookieParser from "cookie-parser";
 import crypto from "crypto";
 import contactRoutes from "./api/contact/index";
 import emailRouters from "./api/email/index";
+import avatarRoutes from "./api/user/avatar";
 import promBundle from "express-prom-bundle";
 
 const app = express();
@@ -190,6 +191,7 @@ app.use("/api/collaboration", authenticateJWT, collaborationRoutes);
 app.use("/api/mentors", authenticateJWT, mentorsRoutes);
 // Add the user routes with authentication middleware
 app.use("/api/user", authenticateJWT, userRoutes);
+app.use("/api/user/avatar", ...avatarRoutes);
 app.use("/api/contact", contactRoutes);
 app.use("/api/email", emailRouters);
 
