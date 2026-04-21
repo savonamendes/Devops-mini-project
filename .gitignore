@@ -10,5 +10,4 @@
 **/dist/
 **/.next/
 
-# ─── Docker ──────────────────────────────────────────────────
-# (keep docker-compose.yml and Dockerfiles committed)
+
