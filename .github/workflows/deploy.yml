@@ -47,10 +47,10 @@ jobs:
             echo "$BACKEND_ENV" > odr-backend/.env.production
             
             # Stop existing containers
-            docker compose down || true
+            sudo docker compose down || true
             
             # Build and deploy the Docker containers in detached mode
-            docker compose up -d --build
+            sudo docker compose up -d --build
             
             # Prune dangling/unused images to save disk space on EC2
-            docker image prune -af
+            sudo docker image prune -af
