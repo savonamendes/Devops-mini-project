@@ -53,8 +53,9 @@ services:
       context: ./odrindia
       dockerfile: Dockerfile
       args:
-        # NEXT_PUBLIC_* vars must be baked in at build time – sourced from odrindia/.env.production
-        NEXT_PUBLIC_API_BASE_URL: http://localhost:4000/api
+        # NEXT_PUBLIC_* vars must be baked in at build time.
+        # Do not hardcode localhost here for EC2/public deployments.
+        NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL-}
         NEXT_PUBLIC_GOOGLE_CLIENT_ID: 700845914621-hj3l8tm0v7u8isrp98h0ff9vlp75e7ru.apps.googleusercontent.com
         NEXT_PUBLIC_JITSI_SERVER: meet.jit.si
         NEXT_PUBLIC_JITSI_ROOM_PREFIX: odrindia-

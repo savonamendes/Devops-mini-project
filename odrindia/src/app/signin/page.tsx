@@ -41,8 +41,6 @@ function SignInClient() {
   const { login, signInWithGoogle } = useAuth();
   const callbackUrl = searchParams?.get("redirect") || "/";
 
-  const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:4000/api";
-
   // Render Google button only once on mount (for fallback UX)
   useEffect(() => {
     const googleButtonContainer = document.getElementById("google-signin-container");

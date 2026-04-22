@@ -45,7 +45,7 @@ jobs:
             # Create the .env.production files using the GitHub Secrets
             echo "$FRONTEND_ENV" > odrindia/.env.production
             echo "$BACKEND_ENV" > odr-backend/.env.production
-            
+            echo "$BACKEND_ENV" > odr-backend/.env
             # Stop existing containers
             sudo docker compose down || true
             
