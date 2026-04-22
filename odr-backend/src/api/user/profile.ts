@@ -3,6 +3,7 @@ import { z } from "zod";
 import prisma from "../../lib/prisma";
 import { logAuditEvent } from "../../lib/auditLog";
 import { authenticateJWT } from "../../middleware/auth";
+import { deleteFromS3 } from "../../utils/s3";
 import rateLimit from "express-rate-limit";
 
 // Helper: Remove script tags and dangerous characters
@@ -138,6 +139,27 @@ export async function updateUserProfile(req: Request, res: Response) {
 
     if (!existingUser) {
       return res.status(404).json({ error: "User not found" });
+    }
+    
+    // If the avatar is changing, delete the old one from S3
+    if (
+      imageAvatar &&
+      existingUser.imageAvatar &&
+      imageAvatar !== existingUser.imageAvatar
+    ) {
+      const s3BucketName = process.env.S3_BUCKET_NAME;
+      const awsRegion = process.env.AWS_REGION || "us-east-1";
+      const s3UrlPattern = new RegExp(`https://s3.${awsRegion}.amazonaws.com/${s3BucketName}/(.+)`);
+      const s3UrlPattern2 = new RegExp(`https://${s3BucketName}.s3.${awsRegion}.amazonaws.com/(.+)`);
+
+      const match = existingUser.imageAvatar.match(s3UrlPattern) || existingUser.imageAvatar.match(s3UrlPattern2);
+      
+      if (match) {
+        const oldKey = decodeURIComponent(match[1]);
+        if (s3BucketName && oldKey) {
+            deleteFromS3(s3BucketName, oldKey);
+        }
+      }
     }
 
     // Update user profile (base User table fields)
