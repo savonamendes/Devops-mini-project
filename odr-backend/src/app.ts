@@ -59,6 +59,8 @@ app.use(securityHeaders); // Helmet: CSP, X-Frame-Options, X-Content-Type-Option
 const allowedOrigins = [
   "https://odrlab.com",
   "https://www.odrlab.com",
+  "https://odrlab.work.gd",
+  "https://www.odrlab.work.gd",
   "https://odrlab.netlify.app",
   "https://api.odrlab.com",
   "http://localhost:3000",
