@@ -48,6 +48,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const refreshPromiseRef = useRef<Promise<void> | null>(null);
   const refreshTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const authStateVersionRef = useRef(0);
+
+  const bumpAuthStateVersion = useCallback(() => {
+    authStateVersionRef.current += 1;
+    return authStateVersionRef.current;
+  }, []);
 
   // Set client flag to prevent hydration mismatches
   useEffect(() => {
@@ -86,9 +92,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       clearTimeout(refreshTimeoutRef.current);
     }
 
+    const requestVersion = authStateVersionRef.current;
+
     refreshPromiseRef.current = (async () => {
       try {
         const response = await apiFetch(`/auth/session`);
+        if (requestVersion !== authStateVersionRef.current) {
+          return;
+        }
+
         if (response.ok) {
           const data: SessionResponse = await response.json();
           if (data.user) {
@@ -112,6 +124,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
       } catch (error) {
         console.error("Session refresh failed:", error);
+        if (requestVersion !== authStateVersionRef.current) {
+          return;
+        }
+
         // Only clear user state if it's a network error, not auth error
         if (error instanceof TypeError && error.message.includes('Failed to fetch')) {
           console.warn("Network error during session refresh, keeping current user state");
@@ -131,13 +147,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [isClient]);
 
   const login = useCallback((userData: User) => {
+    bumpAuthStateVersion();
     setUser(userData);
     storeUserSession(userData);
     updateLastActivity();
     setLoading(false);
-  }, []);
+  }, [bumpAuthStateVersion]);
 
   const logout = useCallback(async () => {
+    bumpAuthStateVersion();
     try {
       // Call the server logout endpoint to clear server-side cookies
       const response = await apiFetch(`/auth/logout`, {
@@ -189,9 +207,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         throw new Error(data.error || "Signup failed");
       }
 
+      if (data.user) {
+        bumpAuthStateVersion();
+        setUser(data.user);
+        storeUserSession(data.user);
+        updateLastActivity();
+      }
+
       return data;
     },
-    []
+    [bumpAuthStateVersion]
   );
 
   const signInWithGoogle = useCallback(
@@ -217,6 +242,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
         // Always set user in context, include needsProfileCompletion
         if (data.user) {
+          bumpAuthStateVersion();
           const userData = { 
             ...data.user, 
             needsProfileCompletion: data.needsProfileCompletion 
@@ -232,7 +258,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         throw error;
       }
     },
-    []
+    [bumpAuthStateVersion]
   );
 
   // Add a profile completion function
@@ -256,6 +282,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
         // Update user data only, include needsProfileCompletion if present
         if (data.user) {
+          bumpAuthStateVersion();
           const userData = { 
             ...data.user, 
             needsProfileCompletion: data.needsProfileCompletion 
@@ -271,7 +298,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         throw error;
       }
     },
-    []
+    [bumpAuthStateVersion]
   );
 
   const value = {
