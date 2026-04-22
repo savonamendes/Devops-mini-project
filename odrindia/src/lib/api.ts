@@ -5,10 +5,28 @@ interface ApiOptions extends RequestInit {
   isRefreshAttempt?: boolean;
 }
 
-// export const API_BASE_URL = "https://13.233.201.37";
-export const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
-//export const API_BASE_URL = "http://localhost:4000/api";
+function resolveApiBaseUrl(): string {
+  const envBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL?.trim();
+  if (envBaseUrl) {
+    return envBaseUrl.replace(/\/$/, "");
+  }
+
+  if (typeof window !== "undefined") {
+    const { protocol, hostname } = window.location;
+    return `${protocol}//${hostname}:4000/api`;
+  }
+
+  return (process.env.BACKEND_URL || "http://localhost:4000/api").replace(/\/$/, "");
+}
+
+function normalizePath(path: string): string {
+  return path.startsWith("/") ? path : `/${path}`;
+}
+
+export const API_BASE_URL = resolveApiBaseUrl();
 export async function apiFetch(path: string, options: ApiOptions = {}) {
+  const baseUrl = resolveApiBaseUrl();
+  const normalizedPath = normalizePath(path);
   // Create headers object with proper typing
   const headers = new Headers(options.headers || {});
 
@@ -42,8 +60,8 @@ export async function apiFetch(path: string, options: ApiOptions = {}) {
   const triedRefresh = false;
   while (true) {
     try {
-     // console.log(`Making API request to: ${API_BASE_URL}${path}`);
-      const response = await fetch(`${API_BASE_URL}${path}`, fetchOptions);
+     // console.log(`Making API request to: ${baseUrl}${normalizedPath}`);
+      const response = await fetch(`${baseUrl}${normalizedPath}`, fetchOptions);
      // console.log(`API Response from ${path}: Status ${response.status}`);
 
       // Handle 401 errors
@@ -54,7 +72,7 @@ export async function apiFetch(path: string, options: ApiOptions = {}) {
             const refreshed = await refreshTokens();
             if (refreshed) {
               // Retry original request with new tokens - fix: use path instead of endpoint
-              return apiFetch(path, { ...options, isRefreshAttempt: true });
+              return apiFetch(normalizedPath, { ...options, isRefreshAttempt: true });
             }
           } catch (refreshError) {
             console.error('Error refreshing token:', refreshError);
@@ -107,7 +125,8 @@ export async function apiFetch(path: string, options: ApiOptions = {}) {
 // Add missing refreshTokens function if it doesn't exist elsewhere
 async function refreshTokens(): Promise<boolean> {
   try {
-    const response = await fetch(`${API_BASE_URL}/auth/refresh-token`, {
+    const baseUrl = resolveApiBaseUrl();
+    const response = await fetch(`${baseUrl}/auth/refresh-token`, {
       method: 'POST',
       credentials: 'include',
       headers: {

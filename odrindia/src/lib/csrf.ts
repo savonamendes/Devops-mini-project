@@ -2,6 +2,20 @@
 
 let csrfToken: string | null = null;
 
+function resolveApiBaseUrl(): string {
+  const envBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL?.trim();
+  if (envBaseUrl) {
+    return envBaseUrl.replace(/\/$/, "");
+  }
+
+  if (typeof window !== "undefined") {
+    const { protocol, hostname } = window.location;
+    return `${protocol}//${hostname}:4000/api`;
+  }
+
+  return (process.env.BACKEND_URL || "http://localhost:4000/api").replace(/\/$/, "");
+}
+
 /**
  * Gets the stored CSRF token
  */
@@ -39,8 +53,7 @@ export function storeCsrfToken(token: string): void {
 export async function fetchAndStoreCsrfToken(): Promise<string> {
   try {
     console.log("Fetching new CSRF token");
-    // Get API_BASE_URL directly from environment to avoid circular dependency
-    const baseUrl = process.env.NEXT_PUBLIC_API_BASE_URL;
+    const baseUrl = resolveApiBaseUrl();
     
     const response = await fetch(`${baseUrl}/csrf-token`, {
       credentials: 'include',

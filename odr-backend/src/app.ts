@@ -56,17 +56,33 @@ app.use((req: Request, res: Response, next: NextFunction) => {
 app.use(securityHeaders); // Helmet: CSP, X-Frame-Options, X-Content-Type-Options, Referrer-Policy, HSTS
 
 // --- CORS Middleware: Always set for all routes, including /api/csrf-token ---
+const allowedOrigins = [
+  "https://odrlab.com",
+  "https://www.odrlab.com",
+  "https://odrlab.netlify.app",
+  "https://api.odrlab.com",
+  "http://localhost:3000",
+  // Internal Docker network: frontend container -> backend container
+  "http://frontend:3000",
+  process.env.FRONTEND_URL,
+].filter((value): value is string => Boolean(value));
+
+const isIpFrontendOrigin = (origin: string): boolean => {
+  return /^https?:\/\/(?:\d{1,3}\.){3}\d{1,3}:3000$/.test(origin);
+};
+
 app.use(
   cors({
-    origin: [
-      "https://odrlab.com",
-      "https://www.odrlab.com",
-      "https://odrlab.netlify.app",
-      "https://api.odrlab.com",
-      "http://localhost:3000",
-      // Internal Docker network: frontend container → backend container
-      "http://frontend:3000",
-    ],
+    origin: (origin, callback) => {
+      // Allow non-browser clients and same-origin requests without Origin header.
+      if (!origin) return callback(null, true);
+
+      if (allowedOrigins.includes(origin) || isIpFrontendOrigin(origin)) {
+        return callback(null, true);
+      }
+
+      return callback(new Error("Not allowed by CORS"));
+    },
     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization", "x-csrf-token"],
     credentials: true,
@@ -80,20 +96,13 @@ app.options("*", cors());
 // Manual fallback for OPTIONS requests (legacy/edge-case clients)
 app.use((req, res, next) => {
   if (req.method === "OPTIONS") {
-    const allowedOrigins = [
-      "https://odrlab.com",
-      "https://www.odrlab.com",
-      "https://odrlab.netlify.app",
-      "https://api.odrlab.com",
-      "http://localhost:3000",
-      // Internal Docker network
-      "http://frontend:3000",
-    ];
     const origin =
       typeof req.headers.origin === "string" ? req.headers.origin : "";
+    const resolvedOrigin =
+      allowedOrigins.includes(origin) || isIpFrontendOrigin(origin) ? origin : "";
     res.header(
       "Access-Control-Allow-Origin",
-      allowedOrigins.includes(origin) ? origin : ""
+      resolvedOrigin
     );
     res.header("Access-Control-Allow-Methods", "GET,POST,PUT,DELETE,OPTIONS");
     res.header(
