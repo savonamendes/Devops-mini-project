@@ -1,7 +1,7 @@
 import { Request, Response } from "express";
-import jwt from "jsonwebtoken";
 import { z } from "zod";
 import prisma from "../../lib/prisma";
+import { setAuthCookies } from "../../lib/auth-utils";
 
 function sanitizeString(str: string): string {
   return str.replace(/<script.*?>.*?<\/script>/gi, "").replace(/[<>]/g, "");
@@ -78,21 +78,18 @@ export default async function googleSignInHandler(req: Request, res: Response) {
       return res.status(500).json({ error: "Failed to create or retrieve user" });
     }
     
-    // Create JWT token
-    const jwtSecret = process.env.JWT_SECRET;
-    if (!jwtSecret) {
-      console.error("JWT_SECRET is not configured!");
-      return res.status(500).json({ error: "Server configuration error" });
-    }
-    
-    // Generate token if profile is complete
-    let token = null;
     if (!needsProfileCompletion) {
-      token = jwt.sign(
-        { id: user.id, email: user.email, userRole: user.userRole },
-        jwtSecret,
-        { expiresIn: "7d" }
-      );
+      setAuthCookies(res, {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        userRole: user.userRole as "INNOVATOR" | "MENTOR" | "ADMIN" | "OTHER" | "FACULTY",
+        contactNumber: user.contactNumber,
+        city: user.city,
+        country: user.country,
+        imageAvatar: user.imageAvatar,
+        createdAt: user.createdAt.toISOString(),
+      }, req);
       console.log(`Google sign-in successful with complete profile for: ${email}`);
     } else {
       console.log(`Google sign-in successful, profile completion needed for: ${email}`);
@@ -118,16 +115,6 @@ export default async function googleSignInHandler(req: Request, res: Response) {
       };
     }
     
-    // Always set JWT as cookie (if profile complete), never send token in response
-    if (token) {
-      res.cookie("access_token", token, {
-        httpOnly: true,
-        secure: true, // Always secure in production
-        sameSite: "none" as const, // Allow cross-origin cookies for production
-        path: "/",
-        maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
-      });
-    }
     return res.status(200).json({
       user: {
         id: user.id,

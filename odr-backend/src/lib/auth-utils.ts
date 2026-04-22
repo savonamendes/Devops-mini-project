@@ -4,8 +4,25 @@
  */
 
 import * as jwt from "jsonwebtoken";
-import { Response } from "express";
+import { Request, Response } from "express";
 import { User, JWTPayload, CookieOptions, SessionData } from "../types/auth";
+
+function isSecureRequest(req?: Request): boolean {
+  const explicitSecure = process.env.COOKIE_SECURE;
+  if (explicitSecure === "true") return true;
+  if (explicitSecure === "false") return false;
+
+  if (!req) {
+    return process.env.NODE_ENV === "production";
+  }
+
+  const forwardedProtoHeader = req.headers["x-forwarded-proto"];
+  const forwardedProto = Array.isArray(forwardedProtoHeader)
+    ? forwardedProtoHeader[0]
+    : forwardedProtoHeader;
+
+  return req.secure || forwardedProto === "https";
+}
 
 /**
  * Generate JWT access token for a user
@@ -56,13 +73,13 @@ export function generateRefreshToken(user: User, expiresIn: string = '7d'): stri
 /**
  * Get cookie options based on environment
  */
-export function getCookieOptions(isRefresh = false): CookieOptions {
-  const isProduction = process.env.NODE_ENV === 'production';
+export function getCookieOptions(isRefresh = false, req?: Request): CookieOptions {
+  const secure = isSecureRequest(req);
   
   return {
     httpOnly: true,
-    secure: isProduction, // HTTPS only in production
-    sameSite: isProduction ? "none" : "lax", // Cross-origin in production
+    secure,
+    sameSite: secure ? "none" : "lax",
     path: "/",
     maxAge: isRefresh ? 7 * 24 * 60 * 60 * 1000 : 15 * 60 * 1000 // 7d for refresh, 15m for access
   };
@@ -71,17 +88,17 @@ export function getCookieOptions(isRefresh = false): CookieOptions {
 /**
  * Set authentication cookies on response
  */
-export function setAuthCookies(res: Response, user: User): void {
+export function setAuthCookies(res: Response, user: User, req?: Request): void {
   try {
     // Generate tokens
     const accessToken = generateAccessToken(user);
     const refreshToken = generateRefreshToken(user);
 
     // Set access token cookie
-    res.cookie('access_token', accessToken, getCookieOptions(false));
+    res.cookie('access_token', accessToken, getCookieOptions(false, req));
     
     // Set refresh token cookie
-    res.cookie('refresh_token', refreshToken, getCookieOptions(true));
+    res.cookie('refresh_token', refreshToken, getCookieOptions(true, req));
 
     // Legacy session cookie for backward compatibility
     const sessionData: SessionData = {
@@ -91,7 +108,7 @@ export function setAuthCookies(res: Response, user: User): void {
     };
     const sessionCookie = Buffer.from(JSON.stringify(sessionData), 'utf-8').toString('base64');
     res.cookie('odrindia_session', sessionCookie, {
-      ...getCookieOptions(false),
+      ...getCookieOptions(false, req),
       maxAge: 24 * 60 * 60 * 1000 // 24h for legacy compatibility
     });
 
@@ -105,14 +122,9 @@ export function setAuthCookies(res: Response, user: User): void {
 /**
  * Clear authentication cookies
  */
-export function clearAuthCookies(res: Response): void {
+export function clearAuthCookies(res: Response, req?: Request): void {
   try {
-    const cookieOptions = {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: process.env.NODE_ENV === 'production' ? "none" as const : "lax" as const,
-      path: "/",
-    };
+    const cookieOptions = getCookieOptions(false, req);
 
     res.clearCookie('access_token', cookieOptions);
     res.clearCookie('refresh_token', cookieOptions);

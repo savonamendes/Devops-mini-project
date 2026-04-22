@@ -1,16 +1,6 @@
 import { Request, Response } from "express";
 import jwt, { JwtPayload } from "jsonwebtoken";
-
-// Helper to get cookie options
-function getCookieOptions(isRefresh = false) {
-  return {
-    httpOnly: true,
-    secure: true, // Always set Secure for HTTPS
-    sameSite: "none" as const, // Allow cross-origin cookies for production
-    path: "/",
-    ...(isRefresh ? { maxAge: 7 * 24 * 60 * 60 * 1000 } : { maxAge: 15 * 60 * 1000 })
-  };
-}
+import { getCookieOptions } from "../../lib/auth-utils";
 
 export default async function refreshTokenHandler(req: Request, res: Response) {
   const jwtSecret = process.env.JWT_SECRET;
@@ -34,8 +24,8 @@ export default async function refreshTokenHandler(req: Request, res: Response) {
       jwtSecret,
       { expiresIn: "7d" }
     );
-    res.cookie("access_token", accessToken, getCookieOptions());
-    res.cookie("refresh_token", newRefreshToken, getCookieOptions(true));
+    res.cookie("access_token", accessToken, getCookieOptions(false, req));
+    res.cookie("refresh_token", newRefreshToken, getCookieOptions(true, req));
     return res.status(200).json({ success: true });
   } catch (err) {
     return res.status(401).json({ error: "Invalid or expired refresh token" });

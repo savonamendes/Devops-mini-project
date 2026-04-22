@@ -159,7 +159,7 @@ export default async function loginHandler(req: Request, res: Response) {
     }
 
     // Set authentication cookies using unified utility
-    setAuthCookies(res, userData);
+    setAuthCookies(res, userData, req);
     
     console.log(`Login successful for user: ${userData.email} with role: ${userData.userRole}`);
 

@@ -4,7 +4,7 @@ import { clearAuthCookies } from "../../lib/auth-utils";
 export default async function logoutHandler(req: Request, res: Response) {
   try {
     // Clear all authentication cookies using the robust utility
-    clearAuthCookies(res);
+    clearAuthCookies(res, req);
     
     console.log("User logout successful - all auth cookies cleared");
     

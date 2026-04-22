@@ -1,11 +1,11 @@
 import { Request, Response } from "express";
 import prisma from "../../lib/prisma";
 import bcrypt from "bcryptjs";
-import jwt from "jsonwebtoken";
 import { UserRole, MentorType } from "@prisma/client";
 import { z } from "zod";
 import * as TwilioService from "../email/twilio";
 import * as Enum from  "../../utils/enum";
+import { setAuthCookies } from "../../lib/auth-utils";
 
 function sanitizeString(str: string): string {
   return str.replace(/<script.*?>.*?<\/script>/gi, "").replace(/[<>]/g, "");
@@ -39,17 +39,6 @@ const signupSchema = z.object({
   mainUserType: z.string().max(100).optional().nullable().transform((v: string | null | undefined) => (v ? sanitizeString(v) : v)),
   userType: z.string().max(100).optional().nullable().transform((v: string | null | undefined) => (v ? sanitizeString(v) : v)),
 });
-
-// Helper to get cookie options
-function getCookieOptions(isRefresh = false) {
-  return {
-    httpOnly: true,
-    secure: true, // Always secure in production
-    sameSite: "none" as const, // Allow cross-origin cookies for production
-    path: "/",
-    ...(isRefresh ? { maxAge: 7 * 24 * 60 * 60 * 1000 } : { maxAge: 15 * 60 * 1000 })
-  };
-}
 
 export default async function signupHandler(req: Request, res: Response) {
   console.log("Signup request received:", JSON.stringify(req.body, null, 2));
@@ -252,29 +241,13 @@ export default async function signupHandler(req: Request, res: Response) {
       return user;
     });
 
-    // Check JWT secret configuration
-    const jwtSecret = process.env.JWT_SECRET;
-    if (!jwtSecret) {
-      console.error("JWT_SECRET is not configured!");
-      return res.status(500).json({ error: "Server configuration error" });
-    }
-
-    // Generate tokens with longer expiration for better UX
-    const accessToken = jwt.sign(
-      { id: user.id, email: user.email, userRole: user.userRole },
-      jwtSecret,
-      { expiresIn: "24h" } // Increased from 15m to 24h
-    );
-    const refreshToken = jwt.sign(
-      { id: user.id, email: user.email, userRole: user.userRole },
-      jwtSecret,
-      { expiresIn: "30d" } // Increased from 7d to 30d
-    );
-    res.cookie("access_token", accessToken, getCookieOptions());
-    res.cookie("refresh_token", refreshToken, getCookieOptions(true));
     // Fetch the complete user data including type-specific information
-    
     const userData = await getUserWithTypeData(user.id, user.userRole)
+    if (!userData) {
+      return res.status(500).json({ error: "Failed to prepare user session" });
+    }
+    setAuthCookies(res, userData, req);
+
        try {
       await TwilioService.sendEmail([user.id], Enum.EmailTemplate.WELCOME_EMAIL,"");
       } catch (mailError: any) {

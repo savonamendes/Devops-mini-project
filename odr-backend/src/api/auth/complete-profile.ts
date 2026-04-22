@@ -1,8 +1,8 @@
 import { Request, Response } from "express";
-import jwt from "jsonwebtoken";
 import prisma from "../../lib/prisma";
 import { UserRole } from "@prisma/client";
 import { z } from "zod";
+import { setAuthCookies } from "../../lib/auth-utils";
 
 function sanitizeString(str: string): string {
   return str.replace(/<script.*?>.*?<\/script>/gi, "").replace(/[<>]/g, "");
@@ -27,17 +27,6 @@ const completeProfileSchema = z.object({
   description: z.string().max(1000).optional().nullable(),
   workplace: z.string().max(200).optional().nullable(),
 });
-
-// Helper to get cookie options
-function getCookieOptions(isRefresh = false) {
-  return {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: "none" as const,
-    path: "/",
-    ...(isRefresh ? { maxAge: 7 * 24 * 60 * 60 * 1000 } : { maxAge: 15 * 60 * 1000 })
-  };
-}
 
 export default async function completeProfileHandler(req: Request, res: Response) {
   try {
@@ -280,26 +269,17 @@ export default async function completeProfileHandler(req: Request, res: Response
       return res.status(404).json({ error: "Failed to update user profile" });
     }
 
-    // Generate JWT token
-    const jwtSecret = process.env.JWT_SECRET;
-    if (!jwtSecret) {
-      console.error("JWT_SECRET is not configured!");
-      return res.status(500).json({ error: "Server configuration error" });
-    }
-    
-    // Generate tokens with longer expiration for better UX
-    const accessToken = jwt.sign(
-      { id: updatedUser.id, email: updatedUser.email, userRole: updatedUser.userRole },
-      jwtSecret,
-      { expiresIn: "24h" } // Increased from 15m to 24h
-    );
-    const refreshToken = jwt.sign(
-      { id: updatedUser.id, email: updatedUser.email, userRole: updatedUser.userRole },
-      jwtSecret,
-      { expiresIn: "30d" } // Increased from 7d to 30d
-    );
-    res.cookie("access_token", accessToken, getCookieOptions());
-    res.cookie("refresh_token", refreshToken, getCookieOptions(true));
+    setAuthCookies(res, {
+      id: updatedUser.id,
+      name: updatedUser.name,
+      email: updatedUser.email,
+      userRole: updatedUser.userRole as "INNOVATOR" | "MENTOR" | "ADMIN" | "OTHER" | "FACULTY",
+      contactNumber: updatedUser.contactNumber,
+      city: updatedUser.city,
+      country: updatedUser.country,
+      imageAvatar: updatedUser.imageAvatar,
+      createdAt: updatedUser.createdAt.toISOString(),
+    }, req);
     
     // Prepare role-specific data for the response
     let roleSpecificData = {};
