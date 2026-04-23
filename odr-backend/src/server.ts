@@ -33,8 +33,8 @@ async function startServer() {
   }
 
   // Add environment validation
-  if (!process.env.TOGETHER_API_KEY) {
-    console.error(`ERROR: TOGETHER_API_KEY environment variable is missing!`);
+  if (!process.env.TOGETHER_API_KEY && !process.env.LAMBDA_CHAT_URL) {
+    console.error(`ERROR: Either TOGETHER_API_KEY or LAMBDA_CHAT_URL environment variable is required!`);
     process.exit(1);
   }
 
@@ -48,6 +48,7 @@ async function startServer() {
     console.log(`Backend server running on port ${PORT}`);
     console.log(`Environment: ${environment}`);
     console.log(`Together AI API Key loaded: ${process.env.TOGETHER_API_KEY ? 'Yes' : 'No'}`);
+    console.log(`Lambda chat URL loaded: ${process.env.LAMBDA_CHAT_URL ? 'Yes' : 'No'}`);
   });
 }
 

@@ -1,10 +1,8 @@
+import axios from "axios";
 import { Router, Request, Response } from "express";
-import { ChatOptimizer } from "../../utils/chatOptimizer";
 
 const router = Router();
-
-// Initialize chat optimizer
-const chatOptimizer = new ChatOptimizer(process.env.TOGETHER_API_KEY || "");
+const lambdaChatUrl = process.env.LAMBDA_CHAT_URL || "https://f8nrnm8pk1.execute-api.us-east-1.amazonaws.com/dev/chat";
 
 // Store conversation history per session (in production, use Redis or database)
 const sessionHistory = new Map<string, Array<{
@@ -12,6 +10,28 @@ const sessionHistory = new Map<string, Array<{
   content: string;
   timestamp: string;
 }>>();
+
+async function callLambdaChat(message: string): Promise<string> {
+  if (!lambdaChatUrl) {
+    throw new Error("LAMBDA_CHAT_URL is not configured");
+  }
+
+  const response = await axios.post(
+    lambdaChatUrl,
+    { message },
+    { headers: { "Content-Type": "application/json" } }
+  );
+
+  const data = response.data;
+  
+  // Handle the API response format: { reply: "..." }
+  if (data.reply && typeof data.reply === "string") {
+    return data.reply;
+  }
+
+  // Fallback: return stringified data if reply not found
+  return JSON.stringify(data);
+}
 
 // Chat endpoint with optimization
 router.post("/", async (req: Request, res: Response) => {
@@ -28,16 +48,8 @@ router.post("/", async (req: Request, res: Response) => {
     // Get or create session history
     let history = sessionHistory.get(currentSessionId) || [];
     
-    // Optimize chat with token-saving strategies
-    const optimizedResponse = await chatOptimizer.optimizeChat(
-      history,
-      detail ? `Please provide detailed explanation: ${message}` : message,
-      {
-        maxHistory: 3, // Keep last 3 message pairs
-        maxTokens: detail ? 300 : 150, // Limit response length
-        useDetailedResponse: detail,
-        modelType: detail ? 'standard' : 'light'
-      }
+    const optimizedResponse = await callLambdaChat(
+      detail ? `Please provide detailed explanation: ${message}` : message
     );
 
     // Update session history
@@ -60,17 +72,17 @@ router.post("/", async (req: Request, res: Response) => {
     });
 
   } catch (error: any) {
-    console.error("Together AI API error:", error);
-    
-    if (error.status === 429) {
+    console.error("Lambda chat API error:", error);
+
+    if (error.response?.status === 429 || error.status === 429) {
       return res.status(429).json({
         error: "Rate limit exceeded. Please try again later."
       });
     }
 
-    return res.status(500).json({ 
+    return res.status(500).json({
       error: "Failed to get response from AI service",
-      details: process.env.NODE_ENV !== 'production' ? String(error) : undefined 
+      details: process.env.NODE_ENV !== 'production' ? String(error) : undefined
     });
   }
 });
