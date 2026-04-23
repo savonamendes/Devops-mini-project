@@ -76,5 +76,8 @@ EXPOSE 3000
 ENV PORT=3000
 ENV HOSTNAME="0.0.0.0"
 
+HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
+    CMD node -e "const http=require('http');const port=process.env.PORT||3000;http.get({host:'127.0.0.1',port,path:'/'},r=>process.exit(r.statusCode<500?0:1)).on('error',()=>process.exit(1));"
+
 # Next.js standalone produces a server.js at the root
 CMD ["node", "server.js"]

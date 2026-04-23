@@ -67,6 +67,8 @@ services:
     environment:
       # Override BACKEND_URL so Next.js server-side calls go through the private network
       BACKEND_URL: http://backend:4000/api
+      PORT: "3000"
+      HOSTNAME: "0.0.0.0"
       NEXT_TELEMETRY_DISABLED: "1"
     depends_on:
       backend:
@@ -74,7 +76,7 @@ services:
     networks:
       - private_net # same network so it can reach backend by DNS name
     healthcheck:
-      test: [ "CMD-SHELL", "node -e \"require('http').get('http://localhost:3000', r => process.exit(r.statusCode < 500 ? 0 : 1)).on('error', () => process.exit(1))\"" ]
+      test: [ "CMD-SHELL", "node -e \"const p=process.env.PORT||3000;require('http').get({host:'127.0.0.1',port:p,path:'/'}, r => process.exit(r.statusCode < 500 ? 0 : 1)).on('error', () => process.exit(1))\"" ]
       interval: 30s
       timeout: 10s
       retries: 3
