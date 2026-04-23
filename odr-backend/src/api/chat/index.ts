@@ -2,7 +2,7 @@ import axios from "axios";
 import { Router, Request, Response } from "express";
 
 const router = Router();
-const lambdaChatUrl = process.env.LAMBDA_CHAT_URL || "";
+const lambdaChatUrl = process.env.LAMBDA_CHAT_URL || "https://f8nrnm8pk1.execute-api.us-east-1.amazonaws.com/dev/chat";
 
 // Store conversation history per session (in production, use Redis or database)
 const sessionHistory = new Map<string, Array<{
@@ -18,34 +18,18 @@ async function callLambdaChat(message: string): Promise<string> {
 
   const response = await axios.post(
     lambdaChatUrl,
-    { text: message },
+    { message },
     { headers: { "Content-Type": "application/json" } }
   );
 
   const data = response.data;
-  if (typeof data === "string") {
-    return data;
+  
+  // Handle the API response format: { reply: "..." }
+  if (data.reply && typeof data.reply === "string") {
+    return data.reply;
   }
 
-  if (data.output) {
-    return data.output;
-  }
-
-  if (data.body) {
-    if (typeof data.body === "string") {
-      try {
-        const parsedBody = JSON.parse(data.body);
-        return parsedBody.output ?? JSON.stringify(parsedBody);
-      } catch {
-        return data.body;
-      }
-    }
-
-    if (typeof data.body.output === "string") {
-      return data.body.output;
-    }
-  }
-
+  // Fallback: return stringified data if reply not found
   return JSON.stringify(data);
 }
 
