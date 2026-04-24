@@ -2,7 +2,15 @@ import axios from "axios";
 import { Router, Request, Response } from "express";
 
 const router = Router();
-const lambdaChatUrl = process.env.LAMBDA_CHAT_URL || "https://f8nrnm8pk1.execute-api.us-east-1.amazonaws.com/dev/chat";
+const rawLambdaChatUrl = process.env.LAMBDA_CHAT_URL || "https://f8nrnm8pk1.execute-api.us-east-1.amazonaws.com/dev/chat";
+
+function resolveLambdaChatUrl(url: string): string {
+  const trimmed = url.trim().replace(/\/$/, "");
+  // Accept either .../dev or .../dev/chat and normalize to .../dev/chat.
+  return trimmed.endsWith("/chat") ? trimmed : `${trimmed}/chat`;
+}
+
+const lambdaChatUrl = resolveLambdaChatUrl(rawLambdaChatUrl);
 
 // Store conversation history per session (in production, use Redis or database)
 const sessionHistory = new Map<string, Array<{
@@ -19,7 +27,10 @@ async function callLambdaChat(message: string): Promise<string> {
   const response = await axios.post(
     lambdaChatUrl,
     { message },
-    { headers: { "Content-Type": "application/json" } }
+    {
+      headers: { "Content-Type": "application/json" },
+      timeout: 30000,
+    }
   );
 
   const data = response.data;
@@ -72,9 +83,16 @@ router.post("/", async (req: Request, res: Response) => {
     });
 
   } catch (error: any) {
-    console.error("Lambda chat API error:", error);
+    const upstreamStatus = error?.response?.status;
+    const upstreamBody = error?.response?.data;
+    console.error("Lambda chat API error:", {
+      message: error?.message,
+      endpoint: lambdaChatUrl,
+      upstreamStatus,
+      upstreamBody,
+    });
 
-    if (error.response?.status === 429 || error.status === 429) {
+    if (upstreamStatus === 429 || error.status === 429) {
       return res.status(429).json({
         error: "Rate limit exceeded. Please try again later."
       });

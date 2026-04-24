@@ -27,6 +27,8 @@ export const API_BASE_URL = resolveApiBaseUrl();
 export async function apiFetch(path: string, options: ApiOptions = {}) {
   const baseUrl = resolveApiBaseUrl();
   const normalizedPath = normalizePath(path);
+  const isSessionCheck = normalizedPath === "/auth/session";
+  const isRefreshCall = normalizedPath === "/auth/refresh-token";
   // Create headers object with proper typing
   const headers = new Headers(options.headers || {});
 
@@ -66,6 +68,11 @@ export async function apiFetch(path: string, options: ApiOptions = {}) {
 
       // Handle 401 errors
       if (response.status === 401) {
+        // A 401 on session check/refresh is expected when user is not authenticated.
+        if (isSessionCheck || isRefreshCall) {
+          return response;
+        }
+
         // Try token refresh if not already attempting it
         if (!options.isRefreshAttempt) {
           try {
