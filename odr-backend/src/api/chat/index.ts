@@ -85,16 +85,42 @@ router.post("/", async (req: Request, res: Response) => {
   } catch (error: any) {
     const upstreamStatus = error?.response?.status;
     const upstreamBody = error?.response?.data;
+    const errorCode = error?.code;
     console.error("Lambda chat API error:", {
       message: error?.message,
       endpoint: lambdaChatUrl,
       upstreamStatus,
       upstreamBody,
+      errorCode,
     });
 
     if (upstreamStatus === 429 || error.status === 429) {
       return res.status(429).json({
         error: "Rate limit exceeded. Please try again later."
+      });
+    }
+
+    if (upstreamStatus === 404) {
+      return res.status(502).json({
+        error: "AI endpoint not found. Verify API Gateway route and LAMBDA_CHAT_URL."
+      });
+    }
+
+    if (upstreamStatus === 401 || upstreamStatus === 403) {
+      return res.status(502).json({
+        error: "AI provider authentication failed. Check Lambda API key/config."
+      });
+    }
+
+    if (errorCode === "ECONNABORTED") {
+      return res.status(504).json({
+        error: "AI service timed out. Please try again shortly."
+      });
+    }
+
+    if (upstreamStatus && upstreamStatus >= 500) {
+      return res.status(502).json({
+        error: "AI provider is temporarily unavailable."
       });
     }
 

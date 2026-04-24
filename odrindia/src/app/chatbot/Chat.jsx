@@ -107,11 +107,12 @@ const Chat = () => {
             
         } catch (error) {
             console.error("Error sending message:", error);
+            const backendMessage = error instanceof Error ? error.message : "";
             const errorMessage = {
                 sender: "bot",
-                text: error.message.includes("Rate limit") 
+                text: backendMessage.includes("Rate limit") 
                     ? "I'm receiving a lot of requests right now. Please wait a moment and try again."
-                    : "Sorry, I'm having trouble connecting to the AI model. Please try again later.",
+                    : backendMessage || "Sorry, I'm having trouble connecting to the AI model. Please try again later.",
                 timestamp: new Date().toISOString(),
                 sessionId
             };
