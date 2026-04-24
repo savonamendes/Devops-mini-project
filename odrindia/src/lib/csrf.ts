@@ -9,8 +9,8 @@ function resolveApiBaseUrl(): string {
   }
 
   if (typeof window !== "undefined") {
-    const { protocol, hostname } = window.location;
-    return `${protocol}//${hostname}:4000/api`;
+    // Use same-origin API path in browsers; Next.js rewrites this to backend.
+    return "/api";
   }
 
   return (process.env.BACKEND_URL || "http://localhost:4000/api").replace(/\/$/, "");
